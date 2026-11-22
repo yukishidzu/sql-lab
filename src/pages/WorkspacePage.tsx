@@ -43,7 +43,7 @@ export function WorkspacePage({ id }: { id: string }) {
   const [mobileTab, setMobileTab] = useState<'schema' | 'sql' | 'notes'>('sql')
   const [schemaVisible, setSchemaVisible] = useState(true)
   const [resultVisible, setResultVisible] = useState(true)
-  const [panelsSwapped, setPanelsSwapped] = useState(false)
+  const [panelsSwapped, setPanelsSwapped] = useState(true)
   const editorRef = useRef<SqlEditorHandle>(null)
   const introspectVersion = useRef(0)
   const { dark, change, theme } = useTheme()

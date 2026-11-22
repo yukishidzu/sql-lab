@@ -1,5 +1,23 @@
 import { expect, test } from '@playwright/test'
 
+test('NULL вводится словом без дополнительной галочки', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: /HR и таск-трекер.*6 таблиц/s }).click()
+  await expect(page.getByRole('button', { name: 'Выполнить', exact: true })).toBeVisible({ timeout: 90000 })
+  await page.locator('.react-flow__node').filter({ hasText: 'employee_profiles' }).getByText('employee_profiles', { exact: true }).click()
+  await page.getByRole('button', { name: 'Строка', exact: true }).click()
+  await page.getByRole('button', { name: 'Случайные значения' }).click()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog.locator('input[type=checkbox]')).toHaveCount(0)
+  const employeeInput = dialog.locator('label').filter({ hasText: /^employee_id/ }).locator('input')
+  await expect(employeeInput).not.toHaveValue('')
+  const employeeId = await employeeInput.inputValue()
+  await dialog.locator('label').filter({ hasText: /^bio/ }).locator('input').fill('NULL')
+  await page.getByRole('button', { name: 'Сохранить строку' }).click()
+  await page.getByRole('button', { name: employeeId, exact: true }).click()
+  await expect(dialog.locator('label').filter({ hasText: /^bio/ }).locator('input')).toHaveValue('NULL')
+})
+
 test('генератор создаёт валидную строку, а черновик переживает закрытие вкладки', async ({ page, context }) => {
   await page.goto('/')
   await page.getByRole('button', { name: /Авиаперелёты.*7 таблиц/s }).click()

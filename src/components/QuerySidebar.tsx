@@ -3,7 +3,6 @@ import { Clock3, Code2, History, Pencil, Trash2 } from 'lucide-react'
 import type { QueryRun, SavedQuery } from '../types'
 import { displayValue, formatDuration } from '../lib/utils'
 import { Button } from './ui/button'
-import { Input } from './ui/input'
 
 export function QuerySidebar({ queries, runs, onOpen, onRename, onDelete, onClose }: {
   queries: SavedQuery[]
@@ -16,6 +15,10 @@ export function QuerySidebar({ queries, runs, onOpen, onRename, onDelete, onClos
   const [tab, setTab] = useState<'saved' | 'history'>('saved')
   const [editing, setEditing] = useState<string | null>(null)
   const [name, setName] = useState('')
+  const finishRename = (query: SavedQuery) => {
+    if (name.trim() && name.trim() !== query.name) onRename(query.id, name.trim())
+    setEditing(null)
+  }
   return (
     <aside className="flex h-full min-h-0 flex-col bg-card">
       <div className="flex h-11 items-center gap-1 border-b border-border px-2">
@@ -24,11 +27,22 @@ export function QuerySidebar({ queries, runs, onOpen, onRename, onDelete, onClos
         <Button variant="ghost" size="icon" className="ml-auto size-8" onClick={onClose} aria-label="Закрыть панель">×</Button>
       </div>
       <div className="min-h-0 flex-1 overflow-auto p-2">
-        {tab === 'saved' && <div className="space-y-1">{queries.map((query) => <div key={query.id} className="group rounded-lg border border-transparent p-2 hover:border-border hover:bg-accent/40">
-          {editing === query.id ? <form onSubmit={(event) => { event.preventDefault(); if (name.trim()) onRename(query.id, name.trim()); setEditing(null) }} className="flex gap-1"><Input autoFocus value={name} onChange={(event) => setName(event.target.value)} className="h-8" /><Button size="sm" type="submit">ОК</Button></form> : <>
-            <button className="w-full cursor-pointer text-left" onClick={() => onOpen(query.sql)}><div className="truncate text-sm font-medium">{query.name}</div><div className="mt-1 truncate font-mono text-[11px] text-muted-foreground">{query.sql}</div></button>
-            <div className="mt-1 flex justify-end gap-1 opacity-60 group-hover:opacity-100"><Button variant="ghost" size="icon" className="size-6" onClick={() => { setEditing(query.id); setName(query.name) }} aria-label="Переименовать"><Pencil size={12} /></Button><Button variant="ghost" size="icon" className="size-6" onClick={() => onDelete(query.id)} aria-label="Удалить"><Trash2 size={12} /></Button></div>
-          </>}
+        {tab === 'saved' && <div className="space-y-1">{queries.map((query) => <div key={query.id} data-query-card className="group rounded-lg border border-transparent p-2 hover:border-border hover:bg-accent/40">
+          {editing === query.id ? <input
+            autoFocus
+            aria-label="Название запроса"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            onFocus={(event) => event.target.select()}
+            onBlur={() => finishRename(query)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') event.currentTarget.blur()
+              if (event.key === 'Escape') { setName(query.name); setEditing(null) }
+            }}
+            className="block h-5 w-full rounded bg-accent/60 px-1 text-sm font-medium outline-none ring-1 ring-primary/40"
+          /> : <button className="block h-5 w-full cursor-pointer truncate text-left text-sm font-medium" onClick={() => onOpen(query.sql)}>{query.name}</button>}
+          <button className="mt-1 block w-full cursor-pointer truncate text-left font-mono text-[11px] text-muted-foreground" onClick={() => onOpen(query.sql)}>{query.sql}</button>
+          <div className="mt-1 flex h-6 justify-end gap-1 opacity-60 group-hover:opacity-100"><Button variant="ghost" size="icon" className="size-6" onClick={() => { if (editing === query.id) finishRename(query); else { setEditing(query.id); setName(query.name) } }} aria-label="Переименовать"><Pencil size={12} /></Button><Button variant="ghost" size="icon" className="size-6" onClick={() => onDelete(query.id)} aria-label="Удалить"><Trash2 size={12} /></Button></div>
         </div>)}{!queries.length && <Empty text="Сохраните запрос кнопкой над редактором" />}</div>}
         {tab === 'history' && <div className="space-y-1">{runs.map((run) => <button key={run.id} className="w-full cursor-pointer rounded-lg p-2 text-left hover:bg-accent/50" onClick={() => onOpen(run.sql)}><div className="flex items-center gap-2 text-xs"><span className={run.status === 'success' ? 'size-2 rounded-full bg-green-500' : 'size-2 rounded-full bg-destructive'} /><span className="text-muted-foreground">{new Date(run.createdAt).toLocaleString('ru-RU')}</span><span className="ml-auto text-muted-foreground">{formatDuration(run.durationMs)}</span></div><div className="mt-1 line-clamp-2 font-mono text-[11px]">{run.sql}</div>{run.error && <div className="mt-1 truncate text-[11px] text-destructive">{displayValue(run.error)}</div>}</button>)}{!runs.length && <Empty text="Запуски появятся после первого SQL-запроса" />}</div>}
       </div>

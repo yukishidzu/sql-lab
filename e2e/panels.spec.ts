@@ -17,6 +17,7 @@ test('схема и результат скрываются, колонки ме
   await page.getByRole('button', { name: 'Схема', exact: true }).click()
   await expect(page.locator('.react-flow')).toBeVisible()
   const before = await page.locator('.react-flow').evaluate((element) => element.getBoundingClientRect().x)
+  expect(before).toBeGreaterThan(0)
   await page.getByRole('button', { name: 'Поменять панели местами' }).click()
-  await expect.poll(() => page.locator('.react-flow').evaluate((element) => element.getBoundingClientRect().x)).toBeGreaterThan(before)
+  await expect.poll(() => page.locator('.react-flow').evaluate((element) => element.getBoundingClientRect().x)).toBeLessThan(before)
 })

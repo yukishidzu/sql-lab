@@ -33,7 +33,8 @@ test('PostgreSQL, ERD, история, заметки и шаринг работ
   await page.getByPlaceholder('Например: доход по месяцам').fill('Аэропорты')
   await page.getByRole('dialog').getByRole('button', { name: 'Сохранить', exact: true }).click()
   await page.getByRole('banner').getByRole('button', { name: 'Запросы', exact: true }).click()
-  await expect(page.getByRole('button', { name: /Аэропорты SELECT code/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Аэропорты', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'SELECT code, city FROM airports ORDER BY code;', exact: true })).toBeVisible()
   await page.getByRole('banner').getByRole('button', { name: 'Запросы', exact: true }).click()
 
   await page.getByRole('button', { name: 'Открыть заметки' }).click()

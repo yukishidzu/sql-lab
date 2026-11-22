@@ -1,5 +1,21 @@
 import { expect, test } from '@playwright/test'
 
+test('переименование запроса не меняет геометрию карточки', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: /HR и таск-трекер.*6 таблиц/s }).click()
+  await expect(page.getByRole('button', { name: 'Выполнить', exact: true })).toBeVisible({ timeout: 90000 })
+  await page.getByRole('banner').getByRole('button', { name: 'Запросы', exact: true }).click()
+  const card = page.locator('[data-query-card]').first()
+  const before = await card.boundingBox()
+  await card.getByRole('button', { name: 'Переименовать' }).click()
+  await expect(card.getByRole('textbox', { name: 'Название запроса' })).toBeVisible()
+  const during = await card.boundingBox()
+  expect(Math.abs((before?.height ?? 0) - (during?.height ?? 0))).toBeLessThan(1)
+  await card.getByRole('textbox', { name: 'Название запроса' }).fill('Новое название')
+  await card.getByRole('textbox', { name: 'Название запроса' }).press('Enter')
+  await expect(page.getByRole('button', { name: 'Новое название', exact: true })).toBeVisible()
+})
+
 test('светлая ERD, компактная мини-карта и стабильные заметки', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'light' })
   await page.goto('/')
