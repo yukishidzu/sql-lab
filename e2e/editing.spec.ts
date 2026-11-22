@@ -1,0 +1,70 @@
+import { expect, test } from '@playwright/test'
+import { readFile } from 'node:fs/promises'
+
+test('строки, DDL и резервная копия проходят полный цикл', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: /Сервис доставки|Доставка еды.*7 таблиц/s }).click()
+  await expect(page.getByRole('button', { name: 'Выполнить', exact: true })).toBeVisible({ timeout: 90000 })
+
+  await page.locator('.react-flow__node').filter({ hasText: 'users' }).getByText('users', { exact: true }).click()
+  await expect(page.getByRole('dialog')).toContainText('Данные: users')
+  await page.getByRole('button', { name: 'Анна', exact: true }).click()
+  const nameInput = page.getByRole('dialog').locator('label').filter({ hasText: /^name/ }).locator('input:not([type=checkbox])')
+  await nameInput.fill('Анна Изменённая')
+  await page.getByRole('button', { name: 'Сохранить строку' }).click()
+  await expect(page.getByRole('button', { name: 'Анна Изменённая', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Закрыть' }).click()
+
+  await page.getByRole('button', { name: 'Сценарий', exact: true }).click()
+  await page.getByRole('button', { name: 'Новая таблица', exact: true }).click()
+  await page.getByPlaceholder('products').fill('audit_log')
+  await page.getByRole('button', { name: 'Добавить в DDL' }).click()
+  await expect(page.getByRole('textbox', { name: 'DDL PostgreSQL' })).toHaveValue(/audit_log/)
+  page.once('dialog', (dialog) => void dialog.accept())
+  await page.getByRole('button', { name: 'Проверить и применить' }).click()
+  await expect(page.getByRole('dialog', { name: 'Редактор сценария' })).toHaveCount(0, { timeout: 90000 })
+  await expect(page.locator('.react-flow__node')).toHaveCount(8)
+
+  const downloadPromise = page.waitForEvent('download', { timeout: 90000 })
+  await page.getByRole('button', { name: 'Экспорт резервной копии' }).click()
+  const download = await downloadPromise
+  const path = await download.path()
+  expect(path).toBeTruthy()
+  const backup = JSON.parse(await readFile(path!, 'utf8'))
+  expect(backup.dump).toContain('audit_log')
+  expect(backup.workspace.scenario.schemaSql).toContain('audit_log')
+
+  await page.getByRole('button', { name: 'На главную' }).click()
+  await page.locator('input[type=file]').setInputFiles(path!)
+  await expect(page.getByRole('button', { name: 'Выполнить', exact: true })).toBeVisible({ timeout: 90000 })
+  await expect(page.locator('.react-flow__node')).toHaveCount(8)
+})
+
+test('одна база работает в двух вкладках без SharedArrayBuffer', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: /Авиаперелёты.*7 таблиц/s }).click()
+  await expect(page.getByRole('button', { name: 'Выполнить', exact: true })).toBeVisible({ timeout: 90000 })
+  const second = await page.context().newPage()
+  await second.goto(page.url())
+  await expect(second.getByRole('button', { name: 'Выполнить', exact: true })).toBeVisible({ timeout: 90000 })
+  await second.locator('.cm-content:visible').click()
+  await second.locator('.cm-content:visible').press('Control+A')
+  await second.locator('.cm-content:visible').pressSequentially('SELECT count(*) AS total FROM flights;')
+  await second.getByRole('button', { name: 'Выполнить', exact: true }).click()
+  await expect(second.getByRole('cell', { name: '5', exact: true })).toBeVisible()
+  expect(await second.evaluate(() => crossOriginIsolated)).toBe(false)
+  expect(await second.evaluate(() => typeof SharedArrayBuffer)).toBe('undefined')
+})
+
+test('мобильные вкладки и тема остаются рабочими', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/')
+  await page.getByRole('button', { name: /HR и таск-трекер.*6 таблиц/s }).click()
+  await expect(page.getByRole('button', { name: 'Выполнить', exact: true })).toBeVisible({ timeout: 90000 })
+  await page.getByRole('button', { name: 'Схема', exact: true }).click()
+  await expect(page.locator('.react-flow__node:visible')).toHaveCount(6)
+  await page.getByRole('button', { name: 'Задания', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Задания: HR и таск-трекер' })).toBeVisible()
+  await page.getByRole('button', { name: /Тема:/ }).click()
+  await expect(page.locator('html')).toHaveClass(/dark/)
+})
