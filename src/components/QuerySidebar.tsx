@@ -25,7 +25,7 @@ export function QuerySidebar({ queries, runs, onOpen, onRename, onDelete, onClos
       </div>
       <div className="min-h-0 flex-1 overflow-auto p-2">
         {tab === 'saved' && <div className="space-y-1">{queries.map((query) => <div key={query.id} className="group rounded-lg border border-transparent p-2 hover:border-border hover:bg-accent/40">
-          {editing === query.id ? <form onSubmit={(event) => { event.preventDefault(); onRename(query.id, name); setEditing(null) }} className="flex gap-1"><Input autoFocus value={name} onChange={(event) => setName(event.target.value)} className="h-8" /><Button size="sm" type="submit">ОК</Button></form> : <>
+          {editing === query.id ? <form onSubmit={(event) => { event.preventDefault(); if (name.trim()) onRename(query.id, name.trim()); setEditing(null) }} className="flex gap-1"><Input autoFocus value={name} onChange={(event) => setName(event.target.value)} className="h-8" /><Button size="sm" type="submit">ОК</Button></form> : <>
             <button className="w-full cursor-pointer text-left" onClick={() => onOpen(query.sql)}><div className="truncate text-sm font-medium">{query.name}</div><div className="mt-1 truncate font-mono text-[11px] text-muted-foreground">{query.sql}</div></button>
             <div className="mt-1 flex justify-end gap-1 opacity-60 group-hover:opacity-100"><Button variant="ghost" size="icon" className="size-6" onClick={() => { setEditing(query.id); setName(query.name) }} aria-label="Переименовать"><Pencil size={12} /></Button><Button variant="ghost" size="icon" className="size-6" onClick={() => onDelete(query.id)} aria-label="Удалить"><Trash2 size={12} /></Button></div>
           </>}

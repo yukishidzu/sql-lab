@@ -89,7 +89,9 @@ button, a, input, textarea { -webkit-tap-highlight-color: transparent; }
 .markdown pre code { background: transparent; padding: 0; }
 .markdown table { border-collapse: collapse; width: 100%; } .markdown th, .markdown td { border: 1px solid var(--border); padding: .4rem; text-align: left; }
 
-.react-flow { background: var(--background); --xy-edge-stroke-default: #929aa8; --xy-edge-stroke-selected-default: var(--primary); }
+.react-flow { background-color: var(--background) !important; --xy-background-color: var(--background); --xy-minimap-background-color: var(--card); --xy-edge-stroke-default: #929aa8; --xy-edge-stroke-selected-default: var(--primary); }
+.react-flow.light { color-scheme: light; }
+.react-flow.dark { color-scheme: dark; }
 .react-flow__controls { overflow: hidden; border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 3px 12px #0001; }
 .react-flow__controls button { background: var(--card); color: var(--foreground); border-bottom-color: var(--border); }
 .react-flow__controls button:hover { background: var(--accent); }

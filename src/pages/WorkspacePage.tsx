@@ -175,7 +175,7 @@ export function WorkspacePage({ id }: { id: string }) {
   if (!workspace || !adapter) return <div className="grid h-full place-items-center bg-background"><div className="flex items-center gap-3 text-sm text-muted-foreground"><Loader2 className="animate-spin text-primary" />Загружаем PostgreSQL в браузере…</div></div>
 
   const editorPanel = <div className="flex h-full min-h-0 flex-col"><div className="flex h-11 items-center gap-2 border-b border-border bg-card px-3"><FileCode2 size={15} className="text-primary" /><span className="text-sm font-medium">SQL</span><span className="ml-auto text-[11px] text-muted-foreground">Ctrl/Cmd + Enter</span><Button variant="ghost" size="sm" onClick={() => setSaveOpen(true)}><Save size={14} />Сохранить</Button><Button size="sm" disabled={running || !workspace.draft.trim()} onClick={() => void runQuery()}><Play size={14} />Выполнить</Button></div><div className="min-h-0 flex-1"><SqlEditor ref={editorRef} value={workspace.draft} onChange={changeDraft} schema={schema} dark={dark} onRun={() => void runQuery()} onSave={() => setSaveOpen(true)} /></div></div>
-  const schemaPanel = <SchemaGraph schema={schema} layout={workspace.scenario.layout} onLayoutChange={updateLayout} onTableOpen={setTableName} onColumnInsert={insertColumn} />
+  const schemaPanel = <SchemaGraph schema={schema} layout={workspace.scenario.layout} dark={dark} onLayoutChange={updateLayout} onTableOpen={setTableName} onColumnInsert={insertColumn} />
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background text-foreground">
@@ -205,7 +205,7 @@ export function WorkspacePage({ id }: { id: string }) {
           <div className="flex h-10 items-center gap-1 border-b border-border px-2"><Button variant={mobileTab === 'schema' ? 'secondary' : 'ghost'} size="sm" onClick={() => setMobileTab('schema')}>Схема</Button><Button variant={mobileTab === 'sql' ? 'secondary' : 'ghost'} size="sm" onClick={() => setMobileTab('sql')}>SQL</Button><Button variant={mobileTab === 'notes' ? 'secondary' : 'ghost'} size="sm" onClick={() => setMobileTab('notes')}>Задания</Button></div>
           <div className="h-[calc(100%-2.5rem)]">{mobileTab === 'schema' ? schemaPanel : mobileTab === 'sql' ? <div className="flex h-full flex-col"><div className="h-3/5 min-h-56">{editorPanel}</div><div className="min-h-0 flex-1 border-t border-border"><ResultTable result={result} error={error} running={running} /></div></div> : <NotesPanel notes={workspace.notes} onChange={changeNotes} collapsed={false} onToggle={() => setMobileTab('sql')} />}</div>
         </main>}
-        <div className="hidden md:block"><NotesPanel notes={workspace.notes} onChange={changeNotes} collapsed={notesCollapsed} onToggle={() => setNotesCollapsed(!notesCollapsed)} /></div>
+        <div className="hidden shrink-0 md:block"><NotesPanel notes={workspace.notes} onChange={changeNotes} collapsed={notesCollapsed} onToggle={() => setNotesCollapsed(!notesCollapsed)} /></div>
       </div>
       <DataDrawer tableName={tableName} table={schema.tables.find((table) => table.name === tableName)} adapter={adapter} open={tableName !== null} onOpenChange={(open) => { if (!open) setTableName(null) }} onChanged={() => void refreshSchema()} />
       {scenarioOpen && <ScenarioEditor open={scenarioOpen} onOpenChange={setScenarioOpen} scenario={{ ...workspace.scenario, notes: workspace.notes }} onApply={applyScenario} onCaptureData={captureData} />}
