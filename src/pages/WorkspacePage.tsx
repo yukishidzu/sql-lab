@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowLeft, Check, ChevronDown, Database, Download, FileCode2, History, Link2, Loader2, Moon, Play, Plus, Save, Settings2, Sun } from 'lucide-react'
+import { ArrowLeft, ArrowLeftRight, Check, ChevronDown, ChevronUp, Database, Download, Eye, EyeOff, FileCode2, History, Link2, Loader2, Moon, Play, Plus, Save, Settings2, Sun } from 'lucide-react'
 import { Group, Panel, Separator } from 'react-resizable-panels'
 import { store, recordRun, saveNamedQuery, touchWorkspace } from '../lib/store'
 import type { DatabaseAdapter, QueryResult, QueryRun, SavedQuery, ScenarioDefinition, SchemaInfo, SqlValue, Workspace } from '../types'
@@ -41,6 +41,9 @@ export function WorkspacePage({ id }: { id: string }) {
   const [copied, setCopied] = useState(false)
   const [toast, setToast] = useState('')
   const [mobileTab, setMobileTab] = useState<'schema' | 'sql' | 'notes'>('sql')
+  const [schemaVisible, setSchemaVisible] = useState(true)
+  const [resultVisible, setResultVisible] = useState(true)
+  const [panelsSwapped, setPanelsSwapped] = useState(false)
   const editorRef = useRef<SqlEditorHandle>(null)
   const introspectVersion = useRef(0)
   const { dark, change, theme } = useTheme()
@@ -174,8 +177,13 @@ export function WorkspacePage({ id }: { id: string }) {
   if (fatal) return <div className="grid h-full place-items-center p-6"><div className="max-w-md rounded-xl border border-border bg-card p-6 text-center"><Database className="mx-auto mb-3 text-destructive" /><h1 className="mb-2 font-semibold">Не удалось открыть базу</h1><p className="mb-4 whitespace-pre-wrap text-sm text-muted-foreground">{fatal}</p><Button onClick={() => { location.hash = '/' }}>На главную</Button></div></div>
   if (!workspace || !adapter) return <div className="grid h-full place-items-center bg-background"><div className="flex items-center gap-3 text-sm text-muted-foreground"><Loader2 className="animate-spin text-primary" />Загружаем PostgreSQL в браузере…</div></div>
 
-  const editorPanel = <div className="flex h-full min-h-0 flex-col"><div className="flex h-11 items-center gap-2 border-b border-border bg-card px-3"><FileCode2 size={15} className="text-primary" /><span className="text-sm font-medium">SQL</span><span className="ml-auto text-[11px] text-muted-foreground">Ctrl/Cmd + Enter</span><Button variant="ghost" size="sm" onClick={() => setSaveOpen(true)}><Save size={14} />Сохранить</Button><Button size="sm" disabled={running || !workspace.draft.trim()} onClick={() => void runQuery()}><Play size={14} />Выполнить</Button></div><div className="min-h-0 flex-1"><SqlEditor ref={editorRef} value={workspace.draft} onChange={changeDraft} schema={schema} dark={dark} onRun={() => void runQuery()} onSave={() => setSaveOpen(true)} /></div></div>
-  const schemaPanel = <SchemaGraph schema={schema} layout={workspace.scenario.layout} dark={dark} onLayoutChange={updateLayout} onTableOpen={setTableName} onColumnInsert={insertColumn} />
+  const editorPanel = <div className="flex h-full min-h-0 flex-col"><div className="flex h-11 items-center gap-2 border-b border-border bg-card px-3"><FileCode2 size={15} className="text-primary" /><span className="text-sm font-medium">SQL</span><span className="ml-auto text-[11px] text-muted-foreground">Ctrl/Cmd + Enter</span>{!schemaVisible && <Button variant="ghost" size="sm" className="hidden md:inline-flex" onClick={() => setSchemaVisible(true)}><Eye size={14} />Схема</Button>}<Button variant="ghost" size="icon" className="hidden size-8 md:inline-flex" onClick={() => setPanelsSwapped(!panelsSwapped)} aria-label="Поменять панели местами" title="Поменять панели местами"><ArrowLeftRight size={15} /></Button><Button variant="ghost" size="sm" onClick={() => setSaveOpen(true)}><Save size={14} />Сохранить</Button><Button size="sm" disabled={running || !workspace.draft.trim()} onClick={() => void runQuery()}><Play size={14} />Выполнить</Button></div><div className="min-h-0 flex-1"><SqlEditor ref={editorRef} value={workspace.draft} onChange={changeDraft} schema={schema} dark={dark} onRun={() => void runQuery()} onSave={() => setSaveOpen(true)} /></div></div>
+  const schemaPanel = <SchemaGraph schema={schema} layout={workspace.scenario.layout} dark={dark} onLayoutChange={updateLayout} onTableOpen={setTableName} onColumnInsert={insertColumn} onHide={!mobile ? () => setSchemaVisible(false) : undefined} />
+  const resultPanel = <div className="flex h-full min-h-0 flex-col"><div className="flex h-9 shrink-0 items-center border-b border-border bg-card px-3"><span className="text-xs font-medium">Результат</span><Button variant="ghost" size="icon" className="ml-auto size-7" onClick={() => setResultVisible(false)} aria-label="Скрыть результат" title="Скрыть результат"><EyeOff size={14} /></Button></div><div className="min-h-0 flex-1"><ResultTable result={result} error={error} running={running} /></div></div>
+  const sqlWorkspace = <div className="flex h-full min-h-0 flex-col"><div className="min-h-0 flex-1"><Group orientation="vertical"><Panel defaultSize="56%" minSize="25%">{editorPanel}</Panel>{resultVisible && <Separator className="h-1 cursor-row-resize bg-border hover:bg-primary" />}{resultVisible && <Panel minSize="20%">{resultPanel}</Panel>}</Group></div>{!resultVisible && <button className="flex h-9 shrink-0 cursor-pointer items-center justify-center gap-2 border-t border-border bg-card text-xs text-muted-foreground hover:bg-accent" onClick={() => setResultVisible(true)}><ChevronUp size={14} />Показать результат</button>}</div>
+  const desktopSqlPanel = <Panel key="sql" minSize="35%">{sqlWorkspace}</Panel>
+  const desktopSchemaPanel = <Panel key="schema" defaultSize="48%" minSize="28%">{schemaPanel}</Panel>
+  const horizontalSeparator = <Separator key="horizontal-separator" className="w-1 cursor-col-resize bg-border transition-colors hover:bg-primary" />
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background text-foreground">
@@ -197,9 +205,11 @@ export function WorkspacePage({ id }: { id: string }) {
         {sidebar && <div className="w-72 shrink-0 border-r border-border max-md:absolute max-md:inset-x-0 max-md:top-14 max-md:z-30 max-md:h-[calc(100%-3.5rem)] max-md:w-full"><QuerySidebar queries={queries} runs={runs} onOpen={(draft) => setWorkspace({ ...workspace, draft })} onRename={async (queryId, name) => { await store.queries.update(queryId, { name, updatedAt: Date.now() }); await loadQueries(id) }} onDelete={async (queryId) => { if (confirm('Удалить сохранённый запрос?')) { await store.queries.delete(queryId); await loadQueries(id) } }} onClose={() => setSidebar(false)} /></div>}
         {!mobile ? <main className="min-w-0 flex-1">
           <Group className="min-w-0 flex-1">
-            <Panel defaultSize="48%" minSize="28%">{schemaPanel}</Panel>
-            <Separator className="w-1 cursor-col-resize bg-border transition-colors hover:bg-primary" />
-            <Panel minSize="35%"><Group orientation="vertical"><Panel defaultSize="56%" minSize="25%">{editorPanel}</Panel><Separator className="h-1 cursor-row-resize bg-border hover:bg-primary" /><Panel minSize="20%"><ResultTable result={result} error={error} running={running} /></Panel></Group></Panel>
+            {panelsSwapped && desktopSqlPanel}
+            {panelsSwapped && schemaVisible && horizontalSeparator}
+            {schemaVisible && desktopSchemaPanel}
+            {!panelsSwapped && schemaVisible && horizontalSeparator}
+            {!panelsSwapped && desktopSqlPanel}
           </Group>
         </main> : <main className="min-w-0 flex-1">
           <div className="flex h-10 items-center gap-1 border-b border-border px-2"><Button variant={mobileTab === 'schema' ? 'secondary' : 'ghost'} size="sm" onClick={() => setMobileTab('schema')}>Схема</Button><Button variant={mobileTab === 'sql' ? 'secondary' : 'ghost'} size="sm" onClick={() => setMobileTab('sql')}>SQL</Button><Button variant={mobileTab === 'notes' ? 'secondary' : 'ghost'} size="sm" onClick={() => setMobileTab('notes')}>Задания</Button></div>
@@ -207,7 +217,7 @@ export function WorkspacePage({ id }: { id: string }) {
         </main>}
         <div className="hidden shrink-0 md:block"><NotesPanel notes={workspace.notes} onChange={changeNotes} collapsed={notesCollapsed} onToggle={() => setNotesCollapsed(!notesCollapsed)} /></div>
       </div>
-      <DataDrawer tableName={tableName} table={schema.tables.find((table) => table.name === tableName)} adapter={adapter} open={tableName !== null} onOpenChange={(open) => { if (!open) setTableName(null) }} onChanged={() => void refreshSchema()} />
+      <DataDrawer workspaceId={id} tableName={tableName} table={schema.tables.find((table) => table.name === tableName)} schema={schema} adapter={adapter} open={tableName !== null} onOpenChange={(open) => { if (!open) setTableName(null) }} onChanged={() => void refreshSchema()} />
       {scenarioOpen && <ScenarioEditor open={scenarioOpen} onOpenChange={setScenarioOpen} scenario={{ ...workspace.scenario, notes: workspace.notes }} onApply={applyScenario} onCaptureData={captureData} />}
       <Dialog open={saveOpen} onOpenChange={setSaveOpen}><DialogContent title="Сохранить запрос" description="Название поможет быстро найти его в этом рабочем пространстве."><form onSubmit={(event) => { event.preventDefault(); void saveQuery() }}><Input autoFocus value={queryName} onChange={(event) => setQueryName(event.target.value)} placeholder="Например: доход по месяцам" /><div className="mt-4 flex justify-end gap-2"><Button variant="ghost" onClick={() => setSaveOpen(false)}>Отмена</Button><Button type="submit" disabled={!queryName.trim()}><Save size={14} />Сохранить</Button></div></form></DialogContent></Dialog>
       <Dialog open={Boolean(shareUrl)} onOpenChange={(open) => { if (!open) setShareUrl('') }}><DialogContent title="Ссылка на независимую копию" description="Схема, текущие данные, заметки и стартовые запросы включены. Личная история остаётся в вашем браузере."><TextareaShare value={shareUrl} /><div className="mt-4 flex justify-end"><Button onClick={async () => { await navigator.clipboard.writeText(shareUrl); setCopied(true) }}>{copied ? <Check size={15} /> : <Plus size={15} />}{copied ? 'Скопировано' : 'Копировать ссылку'}</Button></div></DialogContent></Dialog>

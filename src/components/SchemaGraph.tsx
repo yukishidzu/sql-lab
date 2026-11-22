@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { Background, Controls, Handle, MiniMap, Position, ReactFlow, useNodesState, useReactFlow, type Edge, type Node, type NodeProps } from '@xyflow/react'
 import dagre from '@dagrejs/dagre'
-import { LayoutGrid, List, Network } from 'lucide-react'
+import { EyeOff, LayoutGrid, List, Network } from 'lucide-react'
 import type { DbTable, SchemaInfo } from '../types'
 import { quoteIdentifier } from '../lib/utils'
 import { Badge } from './ui/badge'
@@ -17,7 +17,10 @@ function TableNodeCard({ data }: NodeProps<TableNode>) {
       <div className="py-1">{table.columns.map((column) => <div key={column.name} className="relative">
         <Handle id={`${column.name}:target`} type="target" position={Position.Left} className="!pointer-events-none !size-1.5 !border-0 !bg-primary !opacity-0" />
         <button data-column={column.name} onClick={(event) => { event.stopPropagation(); onColumnInsert(`${quoteIdentifier(table.name)}.${quoteIdentifier(column.name)}`) }} className="nodrag flex min-h-6 w-full cursor-pointer items-center gap-1.5 px-3 py-1 text-left font-mono text-[10px] hover:bg-accent" title="Вставить колонку в SQL">
-          <span className={column.primaryKey ? 'font-bold text-amber-600 dark:text-amber-400' : column.foreignKey ? 'text-primary' : ''}>{column.primaryKey ? 'PK' : column.foreignKey ? 'FK' : '·'}</span>
+          <span className="flex w-10 shrink-0 items-center gap-1 text-[8px] font-semibold" data-keys={`${column.primaryKey ? 'PK' : ''}${column.foreignKey ? 'FK' : ''}`}>
+            {column.primaryKey && <span className="text-amber-600 dark:text-amber-400">PK</span>}
+            {column.foreignKey && <span className="text-primary">FK</span>}
+          </span>
           <span className="truncate">{column.name}</span><span className="ml-auto pl-2 text-[9px] text-muted-foreground">{column.dataType.replace('without time zone', '')}</span>
         </button>
         <Handle id={`${column.name}:source`} type="source" position={Position.Right} className="!pointer-events-none !size-1.5 !border-0 !bg-primary !opacity-0" />
@@ -52,13 +55,14 @@ function FitView({ schema, nonce, containerRef }: { schema: SchemaInfo; nonce: n
   return null
 }
 
-export function SchemaGraph({ schema, layout, dark, onLayoutChange, onTableOpen, onColumnInsert }: {
+export function SchemaGraph({ schema, layout, dark, onLayoutChange, onTableOpen, onColumnInsert, onHide }: {
   schema: SchemaInfo
   layout: Record<string, { x: number; y: number }>
   dark: boolean
   onLayoutChange: (layout: Record<string, { x: number; y: number }>) => void
   onTableOpen: (table: string) => void
   onColumnInsert: (text: string) => void
+  onHide?: () => void
 }) {
   const [tree, setTree] = useState(false)
   const [fitNonce, setFitNonce] = useState(0)
@@ -108,7 +112,7 @@ export function SchemaGraph({ schema, layout, dark, onLayoutChange, onTableOpen,
 
   return (
     <section className="relative flex h-full min-h-0 flex-col bg-background" aria-label="ERD-схема базы данных">
-      <div className="flex h-11 shrink-0 items-center gap-2 border-b border-border bg-card px-3"><h2 className="text-sm font-semibold">Схема</h2><Badge>PostgreSQL</Badge><div className="ml-auto flex gap-1"><Button variant="ghost" size="icon" className="size-8" onClick={() => setTree(!tree)} aria-label={tree ? 'Показать ERD' : 'Показать список'}>{tree ? <Network size={15} /> : <List size={15} />}</Button><Button variant="ghost" size="icon" className="size-8" onClick={resetLayout} aria-label="Автоматическая раскладка"><LayoutGrid size={15} /></Button></div></div>
+      <div className="flex h-11 shrink-0 items-center gap-2 border-b border-border bg-card px-3"><h2 className="text-sm font-semibold">Схема</h2><Badge>PostgreSQL</Badge><div className="ml-auto flex gap-1"><Button variant="ghost" size="icon" className="size-8" onClick={() => setTree(!tree)} aria-label={tree ? 'Показать ERD' : 'Показать список'}>{tree ? <Network size={15} /> : <List size={15} />}</Button><Button variant="ghost" size="icon" className="size-8" onClick={resetLayout} aria-label="Автоматическая раскладка"><LayoutGrid size={15} /></Button>{onHide && <Button variant="ghost" size="icon" className="size-8" onClick={onHide} aria-label="Скрыть схему" title="Скрыть схему"><EyeOff size={15} /></Button>}</div></div>
       {tree ? <div className="min-h-0 flex-1 overflow-auto p-3">{schema.tables.map((table) => <div key={table.name} className="mb-2 rounded-lg border border-border"><button className="w-full cursor-pointer px-3 py-2 text-left font-mono text-xs font-semibold hover:bg-accent" onClick={() => onTableOpen(table.name)}>{table.name}</button><div className="border-t border-border p-1">{table.columns.map((column) => <button key={column.name} className="block w-full cursor-pointer rounded px-2 py-1 text-left font-mono text-[11px] text-muted-foreground hover:bg-accent" onClick={() => onColumnInsert(`${quoteIdentifier(table.name)}.${quoteIdentifier(column.name)}`)}>{column.name} · {column.dataType}</button>)}</div></div>)}</div> : <div ref={flowContainerRef} className="min-h-0 flex-1">
         <ReactFlow
           nodes={nodes}

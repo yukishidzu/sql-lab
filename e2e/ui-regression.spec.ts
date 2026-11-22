@@ -13,6 +13,10 @@ test('светлая ERD, компактная мини-карта и стаби
   expect(minimap?.height).toBeLessThanOrEqual(76)
   await expect(page.locator('.react-flow__edge-text')).toHaveCount(0)
   await expect(page.locator('[data-handleid="departure_airport:source"]')).toHaveCSS('opacity', '0')
+  await expect(page.locator('[data-id="boarding_passes"] [data-column="ticket_id"] [data-keys]')).toHaveAttribute('data-keys', 'PKFK')
+  const columnStarts = await page.locator('[data-id="flights"] [data-column]').evaluateAll((columns) => columns.map((column) => column.children[1].getBoundingClientRect().x))
+  expect(columnStarts.every((start) => Math.abs(start - columnStarts[0]) < 1)).toBe(true)
+  await expect(page.locator('[data-id="flights"] [data-column="status"] [data-keys]')).toBeEmpty()
 
   const nodesWithinFlow = () => page.evaluate(() => {
     const flow = document.querySelector('.react-flow')!.getBoundingClientRect()
