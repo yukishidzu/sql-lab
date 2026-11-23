@@ -1,12 +1,11 @@
 import { forwardRef, useImperativeHandle, useMemo, useRef } from 'react'
 import CodeMirror, { type ReactCodeMirrorRef } from '@uiw/react-codemirror'
-import { PostgreSQL, sql } from '@codemirror/lang-sql'
+import { keywordCompletionSource, PostgreSQL, schemaCompletionSource, sql } from '@codemirror/lang-sql'
 import { autocompletion } from '@codemirror/autocomplete'
+import { contextualSqlSource } from '../lib/sqlCompletion'
 import { EditorView, keymap } from '@codemirror/view'
 import { Prec } from '@codemirror/state'
 import type { SchemaInfo } from '../types'
-
-const popularKeywords = new Set(['SELECT', 'FROM', 'WHERE', 'JOIN', 'LEFT JOIN', 'GROUP BY', 'ORDER BY'])
 
 export type SqlEditorHandle = {
   insert: (text: string) => void
@@ -37,26 +36,26 @@ export const SqlEditor = forwardRef<SqlEditorHandle, Props>(function SqlEditor(
       children: table.columns.map((column) => ({ label: column.name, type: 'column', detail: column.dataType })),
     },
   ])), [schema])
+  const completionSource = useMemo(() => contextualSqlSource([
+    keywordCompletionSource(PostgreSQL, true),
+    schemaCompletionSource({ dialect: PostgreSQL, schema: schemaNamespace }),
+  ]), [schemaNamespace])
   const extensions = useMemo(() => [
     Prec.highest(keymap.of([
       { key: 'Mod-Enter', run: () => { handlersRef.current.onRun(); return true } },
       { key: 'Mod-s', run: () => { handlersRef.current.onSave(); return true } },
     ])),
-    sql({
-      dialect: PostgreSQL,
-      schema: schemaNamespace,
-      upperCaseKeywords: true,
-      keywordCompletion: (keyword) => ({ label: keyword, type: 'keyword', boost: popularKeywords.has(keyword) ? 90 : 0 }),
-    }),
+    sql({ dialect: PostgreSQL }),
     autocompletion({
       activateOnTyping: true,
       maxRenderedOptions: 30,
       icons: false,
+      override: [completionSource],
       optionClass: (completion) => `sql-completion sql-completion-${completion.type || 'text'}`,
     }),
     EditorView.lineWrapping,
     EditorView.contentAttributes.of({ 'aria-label': label }),
-  ], [schemaNamespace, label])
+  ], [schemaNamespace, completionSource, label])
 
   useImperativeHandle(ref, () => ({
     insert(text) {

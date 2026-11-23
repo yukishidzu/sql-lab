@@ -78,10 +78,13 @@ button, a, input, textarea { -webkit-tap-highlight-color: transparent; }
 .sql-editor .cm-tooltip { background: var(--card); border: 1px solid var(--border); border-radius: 8px; }
 .sql-editor .cm-tooltip-autocomplete ul li[aria-selected] { background: var(--accent); color: var(--foreground); }
 .sql-editor .sql-completion::before { display: inline-block; min-width: 42px; margin-right: 7px; border-radius: 4px; background: var(--secondary); padding: 0 4px; color: var(--muted-foreground); font: 500 9px/16px Inter, sans-serif; text-align: center; }
-.sql-editor .sql-completion-keyword::before { content: 'keyword'; }
-.sql-editor .sql-completion-table::before { content: 'table'; }
-.sql-editor .sql-completion-column::before { content: 'column'; }
+.sql-editor .sql-completion-keyword::before { content: 'keyword'; background: #eee7fb; color: #6d4bb0; }
+.sql-editor .sql-completion-table::before { content: 'table'; background: #e4f3e9; color: #2f7a4d; }
+.sql-editor .sql-completion-column::before { content: 'column'; background: #e8eefc; color: #405bc4; }
 .sql-editor .sql-completion-text::before { content: 'text'; }
+.dark .sql-editor .sql-completion-keyword::before { background: #3a3150; color: #c4b5fd; }
+.dark .sql-editor .sql-completion-table::before { background: #213c34; color: #a7e3c0; }
+.dark .sql-editor .sql-completion-column::before { background: #273554; color: #a9c1fa; }
 
 .markdown { color: var(--card-foreground); line-height: 1.65; }
 .markdown > :first-child { margin-top: 0; }
