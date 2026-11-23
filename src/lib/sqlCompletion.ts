@@ -58,10 +58,10 @@ export function contextualSqlSource(sources: CompletionSource[]): CompletionSour
       if (!previous || (completion.boost ?? 0) > (previous.boost ?? 0)) options.set(label, completion)
     }
     return {
-      from: Math.min(...results.map((result) => result.from ?? context.pos)),
+      from: context.pos - prefix.length,
       to: context.pos,
       options: [...options.values()],
-      filter: false,
+      filter: true,
     }
   }
 }
