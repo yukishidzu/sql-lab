@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 
 test('переименование запроса не меняет геометрию карточки', async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('button', { name: /HR и таск-трекер.*6 таблиц/s }).click()
+  await page.getByRole('button', { name: /Онлайн-кинотеатр.*6 таблиц/s }).click()
   await expect(page.getByRole('button', { name: 'Выполнить', exact: true })).toBeVisible({ timeout: 90000 })
   await page.getByRole('banner').getByRole('button', { name: 'Запросы', exact: true }).click()
   const card = page.locator('[data-query-card]').first()
@@ -29,10 +29,10 @@ test('светлая ERD, компактная мини-карта и стаби
   expect(minimap?.height).toBeLessThanOrEqual(76)
   await expect(page.locator('.react-flow__edge-text')).toHaveCount(0)
   await expect(page.locator('[data-handleid="departure_airport:source"]')).toHaveCSS('opacity', '0')
-  await expect(page.locator('[data-id="boarding_passes"] [data-column="ticket_id"] [data-keys]')).toHaveAttribute('data-keys', 'PKFK')
+  await expect(page.locator('[data-id="boarding_passes"] [data-column="ticket_flight_id"] [data-keys]')).toHaveAttribute('data-keys', 'PKFK')
   const singleGutter = await page.locator('[data-id="flights"] [data-column="id"] [data-keys]').boundingBox()
-  const compositeGutter = await page.locator('[data-id="boarding_passes"] [data-column="ticket_id"] [data-keys]').boundingBox()
-  expect(singleGutter?.width).toBeLessThan(compositeGutter?.width ?? 0)
+  const compositeGutter = await page.locator('[data-id="boarding_passes"] [data-column="ticket_flight_id"] [data-keys]').boundingBox()
+  expect(singleGutter?.width).toBe(compositeGutter?.width)
   const singleKey = await page.locator('[data-id="flights"] [data-column="id"] [data-keys] > span').boundingBox()
   expect(Math.abs((singleGutter?.x ?? 0) + (singleGutter?.width ?? 0) / 2 - (singleKey?.x ?? 0) - (singleKey?.width ?? 0) / 2)).toBeLessThan(1)
   const columnStarts = await page.locator('[data-id="flights"] [data-column]').evaluateAll((columns) => columns.map((column) => column.children[1].getBoundingClientRect().x))

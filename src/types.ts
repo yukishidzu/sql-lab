@@ -65,6 +65,18 @@ export type QueryRun = {
 
 export type ScenarioData = Record<string, Record<string, SqlValue>[]>
 
+export type SqlTask = {
+  id: string
+  title: string
+  prompt: string
+  referenceQuery: string
+  rules: {
+    compareColumns: boolean
+    compareOrder: boolean
+    readOnly: boolean
+  }
+}
+
 export type ScenarioDefinition = {
   formatVersion: 1
   name: string
@@ -73,6 +85,7 @@ export type ScenarioDefinition = {
   schemaSql: string
   data: ScenarioData
   notes: string
+  tasks?: SqlTask[]
   starterQueries: { name: string; sql: string }[]
   layout: Record<string, { x: number; y: number }>
 }
@@ -94,6 +107,7 @@ export type Preset = {
   version: number
   name: string
   description: string
+  difficulty: 'Базовый' | 'Средний' | 'Продвинутый'
   accent: string
   scenario: ScenarioDefinition
 }

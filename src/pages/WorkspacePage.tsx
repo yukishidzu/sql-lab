@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { ArrowLeft, ArrowLeftRight, Check, ChevronDown, ChevronUp, Database, Download, Eye, EyeOff, FileCode2, History, Link2, Loader2, Moon, Play, Plus, Save, Settings2, Sun } from 'lucide-react'
 import { Group, Panel, Separator } from 'react-resizable-panels'
 import { store, recordRun, saveNamedQuery, touchWorkspace } from '../lib/store'
-import type { DatabaseAdapter, QueryResult, QueryRun, SavedQuery, ScenarioDefinition, SchemaInfo, SqlValue, Workspace } from '../types'
+import type { DatabaseAdapter, QueryResult, QueryRun, SavedQuery, ScenarioDefinition, SchemaInfo, SqlTask, SqlValue, Workspace } from '../types'
 import { SqlEditor, type SqlEditorHandle } from '../components/SqlEditor'
 import { ResultTable } from '../components/ResultTable'
 import { SchemaGraph } from '../components/SchemaGraph'
@@ -18,6 +18,7 @@ import { downloadFile } from '../lib/utils'
 import { createShareUrl, makeBackup } from '../lib/share'
 import { useTheme } from '../lib/theme'
 import { useMediaQuery } from '../lib/useMediaQuery'
+import { checkTask } from '../lib/tasks'
 
 const emptySchema: SchemaInfo = { tables: [], relationships: [] }
 
@@ -70,7 +71,9 @@ export function WorkspacePage({ id }: { id: string }) {
     if (!target) return
     const version = ++introspectVersion.current
     const next = await target.introspect()
-    if (version === introspectVersion.current) setSchema(next)
+    if (version === introspectVersion.current) {
+      setSchema((current) => JSON.stringify(current) === JSON.stringify(next) ? current : next)
+    }
   }, [adapter])
   const loadQueries = useCallback(async (workspaceId: string) => {
     setQueries(await store.queries.where('workspaceId').equals(workspaceId).sortBy('updatedAt'))
@@ -120,6 +123,14 @@ export function WorkspacePage({ id }: { id: string }) {
   const changeNotes = (notes: string) => {
     setWorkspace((current) => current ? { ...current, notes, scenario: { ...current.scenario, notes } } : current)
     void touchWorkspace(id, { notes })
+  }
+  const changeTasks = (tasks: SqlTask[]) => {
+    setWorkspace((current) => {
+      if (!current) return current
+      const scenario = { ...current.scenario, tasks }
+      void touchWorkspace(id, { scenario })
+      return { ...current, scenario }
+    })
   }
   const runQuery = useCallback(async () => {
     if (!adapter || !workspace || running || !workspace.draft.trim()) return
@@ -240,9 +251,9 @@ export function WorkspacePage({ id }: { id: string }) {
           </Group>
         </main> : <main className="min-w-0 flex-1">
           <div className="flex h-10 items-center gap-1 border-b border-border px-2"><Button variant={mobileTab === 'schema' ? 'secondary' : 'ghost'} size="sm" onClick={() => setMobileTab('schema')}>Схема</Button><Button variant={mobileTab === 'sql' ? 'secondary' : 'ghost'} size="sm" onClick={() => setMobileTab('sql')}>SQL</Button><Button variant={mobileTab === 'notes' ? 'secondary' : 'ghost'} size="sm" onClick={() => setMobileTab('notes')}>Задания</Button></div>
-          <div className="h-[calc(100%-2.5rem)]">{mobileTab === 'schema' ? schemaPanel : mobileTab === 'sql' ? <div className="flex h-full flex-col"><div className="h-3/5 min-h-56">{editorPanel}</div><div className="min-h-0 flex-1 border-t border-border"><ResultTable result={result} error={error} running={running} /></div></div> : <NotesPanel notes={workspace.notes} onChange={changeNotes} collapsed={false} onToggle={() => setMobileTab('sql')} />}</div>
+          <div className="h-[calc(100%-2.5rem)]">{mobileTab === 'schema' ? schemaPanel : mobileTab === 'sql' ? <div className="flex h-full flex-col"><div className="h-3/5 min-h-56">{editorPanel}</div><div className="min-h-0 flex-1 border-t border-border"><ResultTable result={result} error={error} running={running} /></div></div> : <NotesPanel notes={workspace.notes} onChange={changeNotes} tasks={workspace.scenario.tasks ?? []} onTasksChange={changeTasks} onCheckTask={(task) => checkTask(adapter, task, workspace.draft)} collapsed={false} onToggle={() => setMobileTab('sql')} />}</div>
         </main>}
-        <div className="hidden shrink-0 md:block"><NotesPanel notes={workspace.notes} onChange={changeNotes} collapsed={notesCollapsed} onToggle={() => setNotesCollapsed(!notesCollapsed)} /></div>
+        <div className="hidden shrink-0 md:block"><NotesPanel notes={workspace.notes} onChange={changeNotes} tasks={workspace.scenario.tasks ?? []} onTasksChange={changeTasks} onCheckTask={(task) => checkTask(adapter, task, workspace.draft)} collapsed={notesCollapsed} onToggle={() => setNotesCollapsed(!notesCollapsed)} /></div>
       </div>
       <DataDrawer workspaceId={id} tableName={tableName} table={schema.tables.find((table) => table.name === tableName)} schema={schema} adapter={adapter} open={tableName !== null} onOpenChange={(open) => { if (!open) setTableName(null) }} onChanged={() => void refreshSchema()} />
       {scenarioOpen && <ScenarioEditor open={scenarioOpen} onOpenChange={setScenarioOpen} scenario={{ ...workspace.scenario, notes: workspace.notes }} schema={schema} onApply={applyScenario} onCaptureData={captureData} />}

@@ -3,10 +3,10 @@ import type { Completion, CompletionContext, CompletionResult, CompletionSource 
 type Clause = 'SELECT' | 'FROM' | 'JOIN' | 'WHERE' | 'GROUP BY' | 'ORDER BY' | 'INSERT INTO' | 'UPDATE' | 'DELETE FROM' | 'SET' | 'CREATE TABLE' | 'ALTER TABLE' | 'START'
 
 const recommendations: Record<Clause, string[]> = {
-  SELECT: ['DISTINCT', 'COUNT', 'AVG', 'SUM', 'MIN', 'MAX', '*', 'FROM'],
+  SELECT: ['DISTINCT', 'COUNT', 'AVG', 'SUM', 'MIN', 'MAX', 'COALESCE', 'NULLIF', 'DATE_TRUNC', 'EXTRACT', 'ROW_NUMBER', 'RANK', 'DENSE_RANK', 'LAG', 'LEAD', 'OVER', 'PARTITION BY', '*', 'FROM'],
   FROM: ['JOIN', 'LEFT JOIN', 'WHERE', 'GROUP BY', 'ORDER BY', 'LIMIT'],
   JOIN: ['ON', 'JOIN', 'LEFT JOIN', 'WHERE'],
-  WHERE: ['AND', 'OR', 'IS NULL', 'IS NOT NULL', 'LIKE', 'IN', 'BETWEEN', 'EXISTS'],
+  WHERE: ['AND', 'OR', 'IS NULL', 'IS NOT NULL', 'LIKE', 'ILIKE', 'IN', 'BETWEEN', 'EXISTS', 'COALESCE', 'NULLIF'],
   'GROUP BY': ['HAVING', 'ORDER BY', 'LIMIT'],
   'ORDER BY': ['ASC', 'DESC', 'NULLS FIRST', 'NULLS LAST', 'LIMIT'],
   'INSERT INTO': ['VALUES', 'DEFAULT VALUES', 'SELECT'],
@@ -20,7 +20,8 @@ const recommendations: Record<Clause, string[]> = {
 
 const tableClauses = new Set<Clause>(['FROM', 'JOIN', 'INSERT INTO', 'UPDATE', 'DELETE FROM', 'ALTER TABLE'])
 const columnClauses = new Set<Clause>(['SELECT', 'WHERE', 'GROUP BY', 'ORDER BY', 'SET'])
-const common = new Set(['SELECT', 'FROM', 'WHERE', 'JOIN', 'LEFT JOIN', 'GROUP BY', 'ORDER BY', 'LIMIT', 'INSERT INTO', 'VALUES', 'UPDATE', 'SET', 'DELETE FROM'])
+const common = new Set(['SELECT', 'FROM', 'WHERE', 'JOIN', 'LEFT JOIN', 'ON', 'OR', 'GROUP BY', 'HAVING', 'ORDER BY', 'LIMIT', 'DISTINCT', 'WITH', 'ILIKE', 'COALESCE', 'NULLIF', 'DATE_TRUNC', 'EXTRACT', 'INSERT INTO', 'VALUES', 'UPDATE', 'SET', 'DELETE FROM'])
+const windowFunctions = new Set(['OVER', 'PARTITION BY', 'ROW_NUMBER', 'RANK', 'DENSE_RANK', 'LAG', 'LEAD'])
 
 function clauseAt(text: string): Clause {
   const matches = [...text.toUpperCase().matchAll(/\b(SELECT|FROM|JOIN|WHERE|GROUP BY|ORDER BY|INSERT INTO|UPDATE|DELETE FROM|SET|CREATE TABLE|ALTER TABLE)\b/g)]
@@ -30,7 +31,8 @@ function clauseAt(text: string): Clause {
 function boostFor(completion: Completion, clause: Clause): Completion {
   const label = completion.label.toUpperCase()
   let boost = completion.boost ?? 0
-  if (common.has(label)) boost = Math.max(boost, 25)
+  if (common.has(label)) boost = Math.max(boost, 45)
+  if (windowFunctions.has(label)) boost = Math.max(boost, 55)
   if (recommendations[clause].includes(label)) boost = Math.max(boost, 99)
   if (tableClauses.has(clause) && completion.type === 'table') boost = Math.max(boost, 90)
   if (columnClauses.has(clause) && completion.type === 'column') boost = Math.max(boost, 90)

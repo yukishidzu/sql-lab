@@ -1,8 +1,8 @@
-import type { PGlite } from '@electric-sql/pglite'
 import type { PGliteWorker } from '@electric-sql/pglite/worker'
 import PGWorker from './pglite-worker.ts?worker'
 import type { DatabaseAdapter, DbRelationship, QueryResult, ScenarioDefinition, SchemaInfo, SqlValue } from '../types'
 import { quoteIdentifier } from '../lib/utils'
+import { bootstrapScenario } from '../lib/bootstrap'
 
 type RawResult = {
   fields: { name: string; dataTypeID: number }[]
@@ -17,17 +17,6 @@ function withDuration(result: RawResult, startedAt: number): QueryResult {
     rowCount: result.rows?.length ?? 0,
     affectedRows: result.affectedRows,
     durationMs: performance.now() - startedAt,
-  }
-}
-
-async function insertData(db: PGlite | PGliteWorker, scenario: ScenarioDefinition) {
-  for (const [table, rows] of Object.entries(scenario.data)) {
-    for (const row of rows) {
-      const columns = Object.keys(row)
-      if (!columns.length) continue
-      const sql = `INSERT INTO public.${quoteIdentifier(table)} (${columns.map(quoteIdentifier).join(', ')}) VALUES (${columns.map((_, index) => `$${index + 1}`).join(', ')})`
-      await db.query(sql, columns.map((column) => row[column]))
-    }
   }
 }
 
@@ -138,9 +127,14 @@ class PGliteAdapter implements DatabaseAdapter {
       const outgoing = result.filter((relation) => relation.sourceTable === table.name)
       const foreignColumns = new Set(outgoing.flatMap((relation) => relation.sourceColumns))
       const primaryColumns = primaryByTable.get(table.name) ?? []
-      if (outgoing.length >= 2 && primaryColumns.length > 0 && primaryColumns.every((column) => foreignColumns.has(column))) {
-        outgoing.forEach((relation) => { relation.junction = true })
-      }
+      const compositeJunction = outgoing.length === 2 && primaryColumns.length === 2
+        && primaryColumns.every((column) => foreignColumns.has(column))
+      const uniquePair = uniqueSets.find((set) => set.table === table.name && set.columns.length === 2
+        && set.columns.every((column) => foreignColumns.has(column)))
+      const pairJunctions = uniquePair ? outgoing.filter((relation) => relation.sourceColumns.length === 1
+        && uniquePair.columns.includes(relation.sourceColumns[0])) : []
+      if (compositeJunction) outgoing.forEach((relation) => { relation.junction = true })
+      else if (pairJunctions.length === 2) pairJunctions.forEach((relation) => { relation.junction = true })
     }
     return { tables, relationships: result }
   }
@@ -187,9 +181,8 @@ class PGliteAdapter implements DatabaseAdapter {
     this.scenario = scenario
     await this.db.transaction(async (tx) => {
       await tx.exec('DROP SCHEMA public CASCADE; CREATE SCHEMA public;')
-      await tx.exec(scenario.schemaSql)
+      await bootstrapScenario(tx, scenario)
     })
-    await insertData(this.db, scenario)
     await this.db.syncToFs()
   }
 
@@ -234,10 +227,7 @@ export async function openDatabase(workspaceId: string, scenario: ScenarioDefini
   if (!initialized) {
     try {
       if (initialDump) await adapter.restore(initialDump)
-      else {
-        await adapter.executeScript(scenario.schemaSql)
-        await insertData(db, scenario)
-      }
+      else await bootstrapScenario(db, scenario)
       await db.syncToFs()
     } catch (error) {
       await adapter.close()
@@ -251,8 +241,7 @@ export async function validateScenario(scenario: ScenarioDefinition) {
   const { PGlite } = await import('@electric-sql/pglite')
   const db = new PGlite('memory://')
   try {
-    await db.exec(scenario.schemaSql)
-    await insertData(db, scenario)
+    await bootstrapScenario(db, scenario)
   } finally {
     await db.close()
   }

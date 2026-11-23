@@ -20,7 +20,7 @@ test('PostgreSQL, ERD, история, заметки и шаринг работ
   await writeSql(page, 'SELECT flight_no, status FROM flights ORDER BY id;')
   await page.getByRole('button', { name: 'Выполнить', exact: true }).click()
   await expect(page.getByRole('cell', { name: 'SL101', exact: true })).toBeVisible()
-  await expect(page.getByRole('cell', { name: 'SL505', exact: true })).toBeVisible()
+  await expect(page.getByRole('cell', { name: 'SL701', exact: true })).toBeVisible()
 
   await writeSql(page, 'SELECT * FROM missing_table;')
   await page.getByRole('button', { name: 'Выполнить', exact: true }).click()
@@ -63,7 +63,7 @@ test('PostgreSQL, ERD, история, заметки и шаринг работ
 
 test('экспорт создаёт полную резервную копию', async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('button', { name: /HR и таск-трекер.*6 таблиц/s }).click()
+  await page.getByRole('button', { name: /Онлайн-кинотеатр.*6 таблиц/s }).click()
   await expect(page.getByRole('button', { name: 'Выполнить', exact: true })).toBeVisible({ timeout: 90000 })
   const downloadPromise = page.waitForEvent('download', { timeout: 90000 })
   await page.getByRole('button', { name: 'Экспорт резервной копии' }).click()

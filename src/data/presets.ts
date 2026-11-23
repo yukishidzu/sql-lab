@@ -1,9 +1,9 @@
 import type { Preset, ScenarioDefinition } from '../types'
+import { shopPreset } from './shop'
+import { cinemaPreset } from './cinema'
 import { airlinePreset } from './airline'
-import { deliveryPreset } from './delivery'
-import { hrPreset } from './hr'
 
-export const presets = [airlinePreset, deliveryPreset, hrPreset]
+export const presets = [shopPreset, cinemaPreset, airlinePreset]
 
 export function getPreset(id: string) {
   return presets.find((preset) => preset.id === id)
@@ -22,6 +22,7 @@ export function emptyScenario(): ScenarioDefinition {
     schemaSql: '-- Создайте таблицы здесь или через кнопку «Новая таблица».\n',
     data: {},
     notes: '## Заметки / Задания\n\nОпишите здесь задачу или добавьте полезные ссылки.',
+    tasks: [],
     starterQueries: [],
     layout: {},
   }

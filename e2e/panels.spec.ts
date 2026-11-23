@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 
 test('схема и результат скрываются, колонки меняются местами', async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('button', { name: /HR и таск-трекер.*6 таблиц/s }).click()
+  await page.getByRole('button', { name: /Онлайн-кинотеатр.*6 таблиц/s }).click()
   await expect(page.getByRole('button', { name: 'Выполнить', exact: true })).toBeVisible({ timeout: 90000 })
   await expect(page.getByRole('region', { name: 'ERD-схема базы данных' })).toBeVisible()
   await expect(page.getByText('Результат', { exact: true })).toBeVisible()

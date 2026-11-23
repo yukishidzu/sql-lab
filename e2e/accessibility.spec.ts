@@ -9,7 +9,7 @@ test('главная страница не имеет автоматически
 
 test('рабочее пространство доступно автоматической проверке', async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('button', { name: /HR и таск-трекер.*6 таблиц/s }).click()
+  await page.getByRole('button', { name: /Онлайн-кинотеатр.*6 таблиц/s }).click()
   await expect(page.getByRole('button', { name: 'Выполнить', exact: true })).toBeVisible({ timeout: 90000 })
   const results = await new AxeBuilder({ page }).analyze()
   expect(results.violations).toEqual([])

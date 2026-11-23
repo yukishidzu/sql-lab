@@ -53,7 +53,7 @@ function TableNodeCard({ data }: NodeProps<TableNode>) {
         {relationships.filter((relation) => relation.sourceTable === table.name && relation.sourceColumns.includes(column.name)).map((relation) => <Handle key={relation.id} id={relation.id} type="source" position={sides[relation.id] ?? Position.Right} className="!pointer-events-none !size-1.5 !border-0 !bg-primary !opacity-0" />)}
         <button data-column={column.name} onClick={(event) => { event.stopPropagation(); onColumnInsert(`${quoteIdentifier(table.name)}.${quoteIdentifier(column.name)}`) }} className="nodrag flex min-h-6 w-full cursor-pointer items-center gap-1 px-2 py-1 text-left font-mono text-[10px] hover:bg-accent" title="Вставить колонку в SQL">
           <span className={`flex ${keyWidth} shrink-0 items-center justify-center gap-0.5 text-[8px] font-semibold`} data-keys={`${column.primaryKey ? 'PK' : ''}${column.foreignKey ? 'FK' : ''}`}>
-            {column.primaryKey && <span className="text-amber-600 dark:text-amber-400">PK</span>}
+            {column.primaryKey && <span className="text-amber-700 dark:text-amber-400">PK</span>}
             {column.foreignKey && <span className="text-primary">FK</span>}
           </span>
           <span className="truncate">{column.name}</span><span className="ml-auto pl-2 text-[9px] text-muted-foreground">{shortType(column.dataType)}</span>
@@ -66,7 +66,7 @@ function TableNodeCard({ data }: NodeProps<TableNode>) {
 
 const nodeTypes = { table: TableNodeCard }
 
-function FitView({ schema, nonce, containerRef }: { schema: SchemaInfo; nonce: number; containerRef: RefObject<HTMLDivElement | null> }) {
+function FitView({ schemaSignature, nonce, containerRef }: { schemaSignature: string; nonce: number; containerRef: RefObject<HTMLDivElement | null> }) {
   const { fitView } = useReactFlow()
   useEffect(() => {
     let firstFrame = 0
@@ -86,7 +86,7 @@ function FitView({ schema, nonce, containerRef }: { schema: SchemaInfo; nonce: n
       cancelAnimationFrame(firstFrame)
       cancelAnimationFrame(secondFrame)
     }
-  }, [schema, nonce, containerRef, fitView])
+  }, [schemaSignature, nonce, containerRef, fitView])
   return null
 }
 
@@ -198,7 +198,7 @@ export function SchemaGraph({ schema, layout, dark, onLayoutChange, onTableOpen,
   return (
     <section className="relative flex h-full min-h-0 flex-col bg-background" aria-label="ERD-схема базы данных">
       <div className="flex h-11 shrink-0 items-center gap-2 border-b border-border bg-card px-3"><h2 className="text-sm font-semibold">Схема</h2><div className="ml-auto flex gap-1"><Button variant="ghost" size="icon" className="size-8" onClick={() => setTree(!tree)} aria-label={tree ? 'Показать ERD' : 'Показать список'}>{tree ? <Network size={15} /> : <List size={15} />}</Button><Button variant="ghost" size="icon" className="size-8" onClick={resetLayout} aria-label="Автоматическая раскладка"><LayoutGrid size={15} /></Button>{onHide && <Button variant="ghost" size="icon" className="size-8" onClick={onHide} aria-label="Скрыть схему" title="Скрыть схему"><EyeOff size={15} /></Button>}</div></div>
-      {tree ? <div className="min-h-0 flex-1 overflow-auto p-3">{schema.tables.map((table) => <div key={table.name} className="mb-2 rounded-lg border border-border"><button className="w-full cursor-pointer px-3 py-2 text-left font-mono text-xs font-semibold hover:bg-accent" onClick={() => onTableOpen(table.name)}>{table.name}</button><div className="border-t border-border p-1">{table.columns.map((column) => <button key={column.name} className="block w-full cursor-pointer rounded px-2 py-1 text-left font-mono text-[11px] text-muted-foreground hover:bg-accent" onClick={() => onColumnInsert(`${quoteIdentifier(table.name)}.${quoteIdentifier(column.name)}`)}><span className="flex items-center gap-1.5"><span className={`flex ${keyWidthForTable(table)} justify-center gap-0.5 text-[9px] font-semibold`}>{column.primaryKey && <span className="text-amber-600 dark:text-amber-400">PK</span>}{column.foreignKey && <span className="text-primary">FK</span>}</span><span>{column.name}</span><span className="ml-auto text-muted-foreground">{shortType(column.dataType)}</span></span></button>)}</div></div>)}</div> : <div ref={flowContainerRef} className="min-h-0 flex-1">
+      {tree ? <div className="min-h-0 flex-1 overflow-auto p-3">{schema.tables.map((table) => <div key={table.name} className="mb-2 rounded-lg border border-border"><button className="w-full cursor-pointer px-3 py-2 text-left font-mono text-xs font-semibold hover:bg-accent" onClick={() => onTableOpen(table.name)}>{table.name}</button><div className="border-t border-border p-1">{table.columns.map((column) => <button key={column.name} className="block w-full cursor-pointer rounded px-2 py-1 text-left font-mono text-[11px] text-muted-foreground hover:bg-accent" onClick={() => onColumnInsert(`${quoteIdentifier(table.name)}.${quoteIdentifier(column.name)}`)}><span className="flex items-center gap-1.5"><span className={`flex ${keyWidthForTable(table)} justify-center gap-0.5 text-[9px] font-semibold`}>{column.primaryKey && <span className="text-amber-700 dark:text-amber-400">PK</span>}{column.foreignKey && <span className="text-primary">FK</span>}</span><span>{column.name}</span><span className="ml-auto text-muted-foreground">{shortType(column.dataType)}</span></span></button>)}</div></div>)}</div> : <div ref={flowContainerRef} className="min-h-0 flex-1">
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -217,7 +217,7 @@ export function SchemaGraph({ schema, layout, dark, onLayoutChange, onTableOpen,
           deleteKeyCode={null}
           proOptions={{ hideAttribution: false }}
         >
-          <FitView schema={schema} nonce={fitNonce} containerRef={flowContainerRef} />
+          <FitView schemaSignature={JSON.stringify(schema)} nonce={fitNonce} containerRef={flowContainerRef} />
           <Background gap={20} size={1} color="var(--border)" />
           <Controls showInteractive={false} position="bottom-left" />
           <MiniMap pannable zoomable position="bottom-right" style={{ width: 112, height: 76 }} nodeColor={dark ? '#4b5565' : '#a4adbb'} maskColor={dark ? '#14161acc' : '#dce2e8aa'} />

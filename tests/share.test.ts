@@ -12,6 +12,7 @@ describe('шаринг сценария', () => {
     const scenario = structuredClone(airlinePreset.scenario)
     scenario.notes += '\n\nДополнительное задание.'
     scenario.name = 'Авиаперелёты — группа А'
+    scenario.tasks?.push({ id: 'custom', title: 'Своё задание', prompt: 'Выведите один рейс.', referenceQuery: 'SELECT id FROM flights LIMIT 1', rules: { compareColumns: true, compareOrder: true, readOnly: true } })
     const url = await createShareUrl(scenario)
     expect(url).toContain('https://example.github.io/sql-lab/#/import/')
     expect(url.length).toBeLessThan(60000)
