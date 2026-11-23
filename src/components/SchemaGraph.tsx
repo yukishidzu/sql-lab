@@ -81,20 +81,28 @@ export function SchemaGraph({ schema, layout, dark, onLayoutChange, onTableOpen,
   const [tree, setTree] = useState(false)
   const [fitNonce, setFitNonce] = useState(0)
   const flowContainerRef = useRef<HTMLDivElement>(null)
-  const initialNodes = useMemo<TableNode[]>(() => {
+  const automaticLayout = useMemo(() => {
+    if (!schema.tables.some((table) => !layout[table.name])) return null
     const graph = new dagre.graphlib.Graph()
     graph.setGraph({ rankdir: 'LR', nodesep: 45, ranksep: 80, marginx: 20, marginy: 20 })
     graph.setDefaultEdgeLabel(() => ({}))
     schema.tables.forEach((table) => graph.setNode(table.name, { width: 224, height: 52 + table.columns.length * 25 }))
     schema.relationships.forEach((relation) => graph.setEdge(relation.sourceTable, relation.targetTable))
     dagre.layout(graph)
-    return schema.tables.map((table) => ({
-      id: table.name,
-      type: 'table',
-      position: layout[table.name] ?? (() => { const node = graph.node(table.name); return { x: node.x - 112, y: node.y - (52 + table.columns.length * 25) / 2 } })(),
-      data: { table, junction: schema.relationships.some((relation) => relation.sourceTable === table.name && relation.junction), onColumnInsert },
+    return Object.fromEntries(schema.tables.map((table) => {
+      const node = graph.node(table.name)
+      return [table.name, { x: node.x - 112, y: node.y - (52 + table.columns.length * 25) / 2 }]
     }))
-  }, [schema, layout, onColumnInsert])
+  }, [schema, layout])
+  useEffect(() => {
+    if (automaticLayout) onLayoutChange(automaticLayout)
+  }, [automaticLayout, onLayoutChange])
+  const initialNodes = useMemo<TableNode[]>(() => schema.tables.map((table) => ({
+    id: table.name,
+    type: 'table',
+    position: automaticLayout?.[table.name] ?? layout[table.name] ?? { x: 0, y: 0 },
+    data: { table, junction: schema.relationships.some((relation) => relation.sourceTable === table.name && relation.junction), onColumnInsert },
+  })), [schema, automaticLayout, layout, onColumnInsert])
   const [nodes, setNodes, onNodesChange] = useNodesState<TableNode>(initialNodes)
   useEffect(() => { setNodes(initialNodes) }, [initialNodes, setNodes])
   const edges = useMemo<Edge[]>(() => schema.relationships.map((relation) => ({
