@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 import { Background, Controls, Handle, MiniMap, Position, ReactFlow, useNodesState, useReactFlow, type Edge, type Node, type NodeProps } from '@xyflow/react'
 import dagre from '@dagrejs/dagre'
 import { EyeOff, LayoutGrid, List, Network } from 'lucide-react'
-import type { DbTable, SchemaInfo } from '../types'
+import type { DbRelationship, DbTable, SchemaInfo } from '../types'
 import { quoteIdentifier } from '../lib/utils'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
@@ -10,7 +10,31 @@ import { CrowFootEdge } from './CrowFootEdge'
 
 const edgeTypes = { crowfoot: CrowFootEdge }
 
-type TableNode = Node<{ table: DbTable; junction: boolean; onColumnInsert: (text: string) => void }, 'table'>
+type TableNode = Node<{
+  table: DbTable
+  junction: boolean
+  relationships: DbRelationship[]
+  sides: Record<string, Position>
+  onColumnInsert: (text: string) => void
+  onHover: (table: string | null) => void
+}, 'table'>
+
+function relationSides(relation: DbRelationship, nodes: TableNode[]) {
+  const source = nodes.find((node) => node.id === relation.sourceTable)
+  const target = nodes.find((node) => node.id === relation.targetTable)
+  const leftToRight = !source || !target || source.position.x <= target.position.x
+  return {
+    sourcePosition: leftToRight ? Position.Right : Position.Left,
+    targetPosition: leftToRight ? Position.Left : Position.Right,
+  }
+}
+
+function sidesForTable(tableName: string, nodes: TableNode[], relationships: DbRelationship[]) {
+  return Object.fromEntries(relationships.filter((relation) => relation.sourceTable === tableName || relation.targetTable === tableName).map((relation) => [
+    relation.id,
+    relationSides(relation, nodes)[relation.sourceTable === tableName ? 'sourcePosition' : 'targetPosition'],
+  ]))
+}
 
 function shortType(type: string) {
   return type.replace('without time zone', '')
@@ -23,13 +47,13 @@ function keyWidthForTable(table: DbTable) {
 }
 
 function TableNodeCard({ data }: NodeProps<TableNode>) {
-  const { table, junction, onColumnInsert } = data
+  const { table, junction, relationships, sides, onColumnInsert, onHover } = data
   const keyWidth = keyWidthForTable(table)
   return (
-    <div className="w-56 overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
+    <div className="w-56 overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm" onMouseEnter={() => onHover(table.name)} onMouseLeave={() => onHover(null)}>
       <div className="flex items-center gap-2 border-b border-border bg-secondary/65 px-3 py-2"><Network size={13} className="text-primary" /><span className="truncate font-mono text-xs font-semibold">{table.name}</span>{junction && <Badge className="ml-auto bg-primary/12 text-primary">M:N</Badge>}</div>
       <div className="py-1">{table.columns.map((column) => <div key={column.name} className="relative">
-        <Handle id={`${column.name}:target`} type="target" position={Position.Left} className="!pointer-events-none !size-1.5 !border-0 !bg-primary !opacity-0" />
+        {relationships.filter((relation) => relation.sourceTable === table.name && relation.sourceColumns.includes(column.name)).map((relation) => <Handle key={relation.id} id={relation.id} type="source" position={sides[relation.id] ?? Position.Right} className="!pointer-events-none !size-1.5 !border-0 !bg-primary !opacity-0" />)}
         <button data-column={column.name} onClick={(event) => { event.stopPropagation(); onColumnInsert(`${quoteIdentifier(table.name)}.${quoteIdentifier(column.name)}`) }} className="nodrag flex min-h-6 w-full cursor-pointer items-center gap-1 px-2 py-1 text-left font-mono text-[10px] hover:bg-accent" title="Вставить колонку в SQL">
           <span className={`flex ${keyWidth} shrink-0 items-center justify-center gap-0.5 text-[8px] font-semibold`} data-keys={`${column.primaryKey ? 'PK' : ''}${column.foreignKey ? 'FK' : ''}`}>
             {column.primaryKey && <span className="text-amber-600 dark:text-amber-400">PK</span>}
@@ -37,7 +61,7 @@ function TableNodeCard({ data }: NodeProps<TableNode>) {
           </span>
           <span className="truncate">{column.name}</span><span className="ml-auto pl-2 text-[9px] text-muted-foreground">{shortType(column.dataType)}</span>
         </button>
-        <Handle id={`${column.name}:source`} type="source" position={Position.Right} className="!pointer-events-none !size-1.5 !border-0 !bg-primary !opacity-0" />
+        {relationships.filter((relation) => relation.targetTable === table.name && relation.targetColumns.includes(column.name)).map((relation) => <Handle key={relation.id} id={relation.id} type="target" position={sides[relation.id] ?? Position.Left} className="!pointer-events-none !size-1.5 !border-0 !bg-primary !opacity-0" />)}
       </div>)}</div>
     </div>
   )
@@ -80,6 +104,8 @@ export function SchemaGraph({ schema, layout, dark, onLayoutChange, onTableOpen,
 }) {
   const [tree, setTree] = useState(false)
   const [fitNonce, setFitNonce] = useState(0)
+  const [hoveredTable, setHoveredTable] = useState<string | null>(null)
+  const [hoveredEdge, setHoveredEdge] = useState<string | null>(null)
   const flowContainerRef = useRef<HTMLDivElement>(null)
   const automaticLayout = useMemo(() => {
     if (!schema.tables.some((table) => !layout[table.name])) return null
@@ -101,22 +127,57 @@ export function SchemaGraph({ schema, layout, dark, onLayoutChange, onTableOpen,
     id: table.name,
     type: 'table',
     position: automaticLayout?.[table.name] ?? layout[table.name] ?? { x: 0, y: 0 },
-    data: { table, junction: schema.relationships.some((relation) => relation.sourceTable === table.name && relation.junction), onColumnInsert },
+    data: {
+      table,
+      junction: schema.relationships.some((relation) => relation.sourceTable === table.name && relation.junction),
+      relationships: schema.relationships,
+      sides: {},
+      onColumnInsert,
+      onHover: setHoveredTable,
+    },
   })), [schema, automaticLayout, layout, onColumnInsert])
   const [nodes, setNodes, onNodesChange] = useNodesState<TableNode>(initialNodes)
   useEffect(() => { setNodes(initialNodes) }, [initialNodes, setNodes])
-  const edges = useMemo<Edge[]>(() => schema.relationships.map((relation) => ({
-    id: relation.id,
-    source: relation.sourceTable,
-    target: relation.targetTable,
-    sourceHandle: `${relation.sourceColumns[0]}:source`,
-    targetHandle: `${relation.targetColumns[0]}:target`,
-    ariaLabel: `${relation.sourceTable}.${relation.sourceColumns.join(', ')} — ${relation.cardinality} — ${relation.targetTable}.${relation.targetColumns.join(', ')}`,
-    type: 'crowfoot',
-    data: { cardinality: relation.cardinality },
-    animated: false,
-    className: 'erd-edge',
-  })), [schema])
+  useEffect(() => {
+    setNodes((current) => {
+      let changed = false
+      const next = current.map((node) => {
+        const sides = sidesForTable(node.id, current, schema.relationships)
+        const previous = node.data.sides
+        const same = Object.keys(sides).length === Object.keys(previous).length && Object.entries(sides).every(([id, position]) => previous[id] === position)
+        if (same) return node
+        changed = true
+        return { ...node, data: { ...node.data, sides } }
+      })
+      return changed ? next : current
+    })
+  }, [nodes, setNodes, schema.relationships])
+  const edges = useMemo<Edge[]>(() => schema.relationships.map((relation) => {
+    const parallel = schema.relationships.filter((item) => item.sourceTable === relation.sourceTable)
+    const index = parallel.findIndex((item) => item.id === relation.id)
+    const laneOffset = Math.max(-28, Math.min(28, (index - (parallel.length - 1) / 2) * 7))
+    const sides = relationSides(relation, nodes)
+    const source = nodes.find((node) => node.id === relation.sourceTable)
+    const target = nodes.find((node) => node.id === relation.targetTable)
+    const active = hoveredEdge === relation.id || hoveredTable === relation.sourceTable || hoveredTable === relation.targetTable
+    const dimmed = (hoveredEdge !== null || hoveredTable !== null) && !active
+    return {
+      id: relation.id,
+      source: relation.sourceTable,
+      target: relation.targetTable,
+      sourceHandle: relation.id,
+      targetHandle: relation.id,
+      sourcePosition: sides.sourcePosition,
+      targetPosition: sides.targetPosition,
+      centerX: source && target && relation.sourceTable !== relation.targetTable ? (source.position.x + target.position.x) / 2 + laneOffset : undefined,
+      ariaLabel: `${relation.sourceTable}.${relation.sourceColumns.join(', ')} — ${relation.cardinality} — ${relation.targetTable}.${relation.targetColumns.join(', ')}`,
+      type: 'crowfoot',
+      data: { id: relation.id, cardinality: relation.cardinality, onHover: setHoveredEdge, active, dimmed },
+      zIndex: active ? 10 : 0,
+      animated: false,
+      className: 'erd-edge',
+    }
+  }), [schema, nodes, hoveredTable, hoveredEdge])
 
   const savePositions = useCallback(() => {
     setNodes((current) => {
