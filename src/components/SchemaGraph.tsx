@@ -19,20 +19,17 @@ type TableNode = Node<{
   onHover: (table: string | null) => void
 }, 'table'>
 
-function relationSides(relation: DbRelationship, nodes: TableNode[]) {
-  const source = nodes.find((node) => node.id === relation.sourceTable)
-  const target = nodes.find((node) => node.id === relation.targetTable)
-  const leftToRight = !source || !target || source.position.x <= target.position.x
+function relationSides() {
   return {
-    sourcePosition: leftToRight ? Position.Right : Position.Left,
-    targetPosition: leftToRight ? Position.Left : Position.Right,
+    sourcePosition: Position.Right,
+    targetPosition: Position.Left,
   }
 }
 
-function sidesForTable(tableName: string, nodes: TableNode[], relationships: DbRelationship[]) {
+function sidesForTable(tableName: string, relationships: DbRelationship[]) {
   return Object.fromEntries(relationships.filter((relation) => relation.sourceTable === tableName || relation.targetTable === tableName).map((relation) => [
     relation.id,
-    relationSides(relation, nodes)[relation.sourceTable === tableName ? 'sourcePosition' : 'targetPosition'],
+    relationSides()[relation.sourceTable === tableName ? 'sourcePosition' : 'targetPosition'],
   ]))
 }
 
@@ -142,7 +139,7 @@ export function SchemaGraph({ schema, layout, dark, onLayoutChange, onTableOpen,
     setNodes((current) => {
       let changed = false
       const next = current.map((node) => {
-        const sides = sidesForTable(node.id, current, schema.relationships)
+        const sides = sidesForTable(node.id, schema.relationships)
         const previous = node.data.sides
         const same = Object.keys(sides).length === Object.keys(previous).length && Object.entries(sides).every(([id, position]) => previous[id] === position)
         if (same) return node
@@ -156,7 +153,7 @@ export function SchemaGraph({ schema, layout, dark, onLayoutChange, onTableOpen,
     const parallel = schema.relationships.filter((item) => item.sourceTable === relation.sourceTable)
     const index = parallel.findIndex((item) => item.id === relation.id)
     const laneOffset = Math.max(-28, Math.min(28, (index - (parallel.length - 1) / 2) * 7))
-    const sides = relationSides(relation, nodes)
+    const sides = relationSides()
     const source = nodes.find((node) => node.id === relation.sourceTable)
     const target = nodes.find((node) => node.id === relation.targetTable)
     const active = hoveredEdge === relation.id || hoveredTable === relation.sourceTable || hoveredTable === relation.targetTable
@@ -169,10 +166,17 @@ export function SchemaGraph({ schema, layout, dark, onLayoutChange, onTableOpen,
       targetHandle: relation.id,
       sourcePosition: sides.sourcePosition,
       targetPosition: sides.targetPosition,
-      centerX: source && target && relation.sourceTable !== relation.targetTable ? (source.position.x + target.position.x) / 2 + laneOffset : undefined,
+      stepPosition: source && target && relation.sourceTable !== relation.targetTable ? Math.min(0.9, Math.max(0.1, 0.5 + laneOffset / Math.max(40, Math.abs(target.position.x - source.position.x)))) : undefined,
       ariaLabel: `${relation.sourceTable}.${relation.sourceColumns.join(', ')} — ${relation.cardinality} — ${relation.targetTable}.${relation.targetColumns.join(', ')}`,
       type: 'crowfoot',
-      data: { id: relation.id, cardinality: relation.cardinality, onHover: setHoveredEdge, active, dimmed },
+      data: {
+        id: relation.id,
+        cardinality: relation.cardinality,
+        stepPosition: source && target && relation.sourceTable !== relation.targetTable ? Math.min(0.9, Math.max(0.1, 0.5 + laneOffset / Math.max(40, Math.abs(target.position.x - source.position.x)))) : undefined,
+        onHover: setHoveredEdge,
+        active,
+        dimmed,
+      },
       zIndex: active ? 10 : 0,
       animated: false,
       className: 'erd-edge',

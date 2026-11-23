@@ -22,8 +22,8 @@ function Glyph({ x, y, kind, position, active, dimmed }: { x: number; y: number;
   return <path d={paths.join(' ')} fill="none" stroke={active ? 'var(--primary)' : 'var(--erd-edge)'} strokeWidth={1.45} strokeLinecap="round" data-cardinality={kind} opacity={dimmed ? 0.35 : 1} />
 }
 
-export function CrowFootEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, style }: EdgeProps<Edge<{ id: string; cardinality: '1:1' | '1:N'; onHover: (id: string | null) => void; active: boolean; dimmed: boolean }>>) {
-  const [path] = getSmoothStepPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, borderRadius: 6, offset: 12 })
+export function CrowFootEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, style }: EdgeProps<Edge<{ id: string; cardinality: '1:1' | '1:N'; stepPosition?: number; onHover: (id: string | null) => void; active: boolean; dimmed: boolean }>>) {
+  const [path] = getSmoothStepPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, borderRadius: 6, offset: 12, stepPosition: data?.stepPosition })
   const active = data?.active ?? false
   const dimmed = data?.dimmed ?? false
   return (
