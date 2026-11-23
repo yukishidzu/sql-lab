@@ -1,0 +1,35 @@
+import { describe, expect, it } from 'vitest'
+import { buildCreateTableSql, type TableColumnDraft } from '../src/lib/table-sql'
+
+function column(patch: Partial<TableColumnDraft>): TableColumnDraft {
+  return { name: 'value', type: 'text', primary: false, unique: false, notNull: false, defaultValue: '', refTable: '', refColumn: '', composite: false, onDelete: '', ...patch }
+}
+
+describe('DDL конструктора таблиц', () => {
+  it('не назначает NOT NULL всем колонкам и создаёт одиночный FK', () => {
+    const sql = buildCreateTableSql('orders', [
+      column({ name: 'id', type: 'integer', primary: true }),
+      column({ name: 'user_id', type: 'integer', refTable: 'users', refColumn: 'id', onDelete: 'CASCADE' }),
+      column({ name: 'note', defaultValue: "'empty'" }),
+    ])
+    expect(sql).toContain('"id" integer NOT NULL')
+    expect(sql).toContain('"user_id" integer,')
+    expect(sql).toContain('"note" text DEFAULT \'empty\'')
+    expect(sql).toContain('FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE')
+  })
+
+  it('создаёт составной PK и один составной FK', () => {
+    const sql = buildCreateTableSql('boarding_copy', [
+      column({ name: 'ticket_id', type: 'integer', primary: true, refTable: 'ticket_flights', refColumn: 'ticket_id', composite: true }),
+      column({ name: 'flight_id', type: 'integer', primary: true, refTable: 'ticket_flights', refColumn: 'flight_id', composite: true }),
+    ])
+    expect(sql).toContain('PRIMARY KEY ("ticket_id", "flight_id")')
+    expect(sql).toContain('FOREIGN KEY ("ticket_id", "flight_id") REFERENCES "ticket_flights" ("ticket_id", "flight_id")')
+    expect(sql.match(/FOREIGN KEY/g)).toHaveLength(1)
+  })
+
+  it('отклоняет несовместимые ограничения', () => {
+    expect(() => buildCreateTableSql('bad', [column({ name: 'id', type: 'integer', notNull: true, refTable: 'users', refColumn: 'id', onDelete: 'SET NULL' })])).toThrow('несовместимо')
+    expect(() => buildCreateTableSql('bad', [column({ name: 'id' }), column({ name: 'id' })])).toThrow('несколько раз')
+  })
+})

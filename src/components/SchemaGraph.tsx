@@ -11,13 +11,16 @@ type TableNode = Node<{ table: DbTable; junction: boolean; onColumnInsert: (text
 
 function TableNodeCard({ data }: NodeProps<TableNode>) {
   const { table, junction, onColumnInsert } = data
+  const hasCompositeKeys = table.columns.some((column) => column.primaryKey && column.foreignKey)
+  const hasKeys = table.columns.some((column) => column.primaryKey || column.foreignKey)
+  const keyWidth = hasCompositeKeys ? 'w-9' : hasKeys ? 'w-5' : 'w-0'
   return (
     <div className="w-56 overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
       <div className="flex items-center gap-2 border-b border-border bg-secondary/65 px-3 py-2"><Network size={13} className="text-primary" /><span className="truncate font-mono text-xs font-semibold">{table.name}</span>{junction && <Badge className="ml-auto bg-primary/12 text-primary">M:N</Badge>}</div>
       <div className="py-1">{table.columns.map((column) => <div key={column.name} className="relative">
         <Handle id={`${column.name}:target`} type="target" position={Position.Left} className="!pointer-events-none !size-1.5 !border-0 !bg-primary !opacity-0" />
         <button data-column={column.name} onClick={(event) => { event.stopPropagation(); onColumnInsert(`${quoteIdentifier(table.name)}.${quoteIdentifier(column.name)}`) }} className="nodrag flex min-h-6 w-full cursor-pointer items-center gap-1 px-2 py-1 text-left font-mono text-[10px] hover:bg-accent" title="Вставить колонку в SQL">
-          <span className="flex w-8 shrink-0 items-center gap-0.5 text-[8px] font-semibold" data-keys={`${column.primaryKey ? 'PK' : ''}${column.foreignKey ? 'FK' : ''}`}>
+          <span className={`flex ${keyWidth} shrink-0 items-center justify-center gap-0.5 text-[8px] font-semibold`} data-keys={`${column.primaryKey ? 'PK' : ''}${column.foreignKey ? 'FK' : ''}`}>
             {column.primaryKey && <span className="text-amber-600 dark:text-amber-400">PK</span>}
             {column.foreignKey && <span className="text-primary">FK</span>}
           </span>
