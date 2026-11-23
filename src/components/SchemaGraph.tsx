@@ -6,14 +6,25 @@ import type { DbTable, SchemaInfo } from '../types'
 import { quoteIdentifier } from '../lib/utils'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
+import { CrowFootEdge } from './CrowFootEdge'
+
+const edgeTypes = { crowfoot: CrowFootEdge }
 
 type TableNode = Node<{ table: DbTable; junction: boolean; onColumnInsert: (text: string) => void }, 'table'>
 
+function shortType(type: string) {
+  return type.replace('without time zone', '')
+}
+
+function keyWidthForTable(table: DbTable) {
+  if (table.columns.some((column) => column.primaryKey && column.foreignKey)) return 'w-9'
+  if (table.columns.some((column) => column.primaryKey || column.foreignKey)) return 'w-5'
+  return 'w-0'
+}
+
 function TableNodeCard({ data }: NodeProps<TableNode>) {
   const { table, junction, onColumnInsert } = data
-  const hasCompositeKeys = table.columns.some((column) => column.primaryKey && column.foreignKey)
-  const hasKeys = table.columns.some((column) => column.primaryKey || column.foreignKey)
-  const keyWidth = hasCompositeKeys ? 'w-9' : hasKeys ? 'w-5' : 'w-0'
+  const keyWidth = keyWidthForTable(table)
   return (
     <div className="w-56 overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
       <div className="flex items-center gap-2 border-b border-border bg-secondary/65 px-3 py-2"><Network size={13} className="text-primary" /><span className="truncate font-mono text-xs font-semibold">{table.name}</span>{junction && <Badge className="ml-auto bg-primary/12 text-primary">M:N</Badge>}</div>
@@ -24,7 +35,7 @@ function TableNodeCard({ data }: NodeProps<TableNode>) {
             {column.primaryKey && <span className="text-amber-600 dark:text-amber-400">PK</span>}
             {column.foreignKey && <span className="text-primary">FK</span>}
           </span>
-          <span className="truncate">{column.name}</span><span className="ml-auto pl-2 text-[9px] text-muted-foreground">{column.dataType.replace('without time zone', '')}</span>
+          <span className="truncate">{column.name}</span><span className="ml-auto pl-2 text-[9px] text-muted-foreground">{shortType(column.dataType)}</span>
         </button>
         <Handle id={`${column.name}:source`} type="source" position={Position.Right} className="!pointer-events-none !size-1.5 !border-0 !bg-primary !opacity-0" />
       </div>)}</div>
@@ -43,7 +54,7 @@ function FitView({ schema, nonce, containerRef }: { schema: SchemaInfo; nonce: n
       cancelAnimationFrame(firstFrame)
       cancelAnimationFrame(secondFrame)
       firstFrame = requestAnimationFrame(() => {
-        secondFrame = requestAnimationFrame(() => { void fitView({ padding: 0.12, maxZoom: 1, duration: 150 }) })
+        secondFrame = requestAnimationFrame(() => { void fitView({ padding: 0.18, maxZoom: 1, duration: 150 }) })
       })
     }
     const observer = new ResizeObserver(fit)
@@ -93,12 +104,10 @@ export function SchemaGraph({ schema, layout, dark, onLayoutChange, onTableOpen,
     sourceHandle: `${relation.sourceColumns[0]}:source`,
     targetHandle: `${relation.targetColumns[0]}:target`,
     ariaLabel: `${relation.sourceTable}.${relation.sourceColumns.join(', ')} — ${relation.cardinality} — ${relation.targetTable}.${relation.targetColumns.join(', ')}`,
-    type: relation.sourceTable === relation.targetTable ? 'smoothstep' : 'default',
+    type: 'crowfoot',
+    data: { cardinality: relation.cardinality },
     animated: false,
     className: 'erd-edge',
-    style: { strokeWidth: 1.25 },
-    markerStart: relation.cardinality === '1:N' ? 'url(#crowfoot)' : 'url(#one-cardinality)',
-    markerEnd: 'url(#one-cardinality)',
   })), [schema])
 
   const savePositions = useCallback(() => {
@@ -115,18 +124,19 @@ export function SchemaGraph({ schema, layout, dark, onLayoutChange, onTableOpen,
 
   return (
     <section className="relative flex h-full min-h-0 flex-col bg-background" aria-label="ERD-схема базы данных">
-      <div className="flex h-11 shrink-0 items-center gap-2 border-b border-border bg-card px-3"><h2 className="text-sm font-semibold">Схема</h2><Badge>PostgreSQL</Badge><div className="ml-auto flex gap-1"><Button variant="ghost" size="icon" className="size-8" onClick={() => setTree(!tree)} aria-label={tree ? 'Показать ERD' : 'Показать список'}>{tree ? <Network size={15} /> : <List size={15} />}</Button><Button variant="ghost" size="icon" className="size-8" onClick={resetLayout} aria-label="Автоматическая раскладка"><LayoutGrid size={15} /></Button>{onHide && <Button variant="ghost" size="icon" className="size-8" onClick={onHide} aria-label="Скрыть схему" title="Скрыть схему"><EyeOff size={15} /></Button>}</div></div>
-      {tree ? <div className="min-h-0 flex-1 overflow-auto p-3">{schema.tables.map((table) => <div key={table.name} className="mb-2 rounded-lg border border-border"><button className="w-full cursor-pointer px-3 py-2 text-left font-mono text-xs font-semibold hover:bg-accent" onClick={() => onTableOpen(table.name)}>{table.name}</button><div className="border-t border-border p-1">{table.columns.map((column) => <button key={column.name} className="block w-full cursor-pointer rounded px-2 py-1 text-left font-mono text-[11px] text-muted-foreground hover:bg-accent" onClick={() => onColumnInsert(`${quoteIdentifier(table.name)}.${quoteIdentifier(column.name)}`)}>{column.name} · {column.dataType}</button>)}</div></div>)}</div> : <div ref={flowContainerRef} className="min-h-0 flex-1">
+      <div className="flex h-11 shrink-0 items-center gap-2 border-b border-border bg-card px-3"><h2 className="text-sm font-semibold">Схема</h2><div className="ml-auto flex gap-1"><Button variant="ghost" size="icon" className="size-8" onClick={() => setTree(!tree)} aria-label={tree ? 'Показать ERD' : 'Показать список'}>{tree ? <Network size={15} /> : <List size={15} />}</Button><Button variant="ghost" size="icon" className="size-8" onClick={resetLayout} aria-label="Автоматическая раскладка"><LayoutGrid size={15} /></Button>{onHide && <Button variant="ghost" size="icon" className="size-8" onClick={onHide} aria-label="Скрыть схему" title="Скрыть схему"><EyeOff size={15} /></Button>}</div></div>
+      {tree ? <div className="min-h-0 flex-1 overflow-auto p-3">{schema.tables.map((table) => <div key={table.name} className="mb-2 rounded-lg border border-border"><button className="w-full cursor-pointer px-3 py-2 text-left font-mono text-xs font-semibold hover:bg-accent" onClick={() => onTableOpen(table.name)}>{table.name}</button><div className="border-t border-border p-1">{table.columns.map((column) => <button key={column.name} className="block w-full cursor-pointer rounded px-2 py-1 text-left font-mono text-[11px] text-muted-foreground hover:bg-accent" onClick={() => onColumnInsert(`${quoteIdentifier(table.name)}.${quoteIdentifier(column.name)}`)}><span className="flex items-center gap-1.5"><span className={`flex ${keyWidthForTable(table)} justify-center gap-0.5 text-[9px] font-semibold`}>{column.primaryKey && <span className="text-amber-600 dark:text-amber-400">PK</span>}{column.foreignKey && <span className="text-primary">FK</span>}</span><span>{column.name}</span><span className="ml-auto text-muted-foreground">{shortType(column.dataType)}</span></span></button>)}</div></div>)}</div> : <div ref={flowContainerRef} className="min-h-0 flex-1">
         <ReactFlow
           nodes={nodes}
           edges={edges}
           nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
           className={dark ? 'dark' : 'light'}
           onNodesChange={onNodesChange}
           onNodeDragStop={savePositions}
           onNodeClick={(_, node) => onTableOpen(node.id)}
           fitView
-          fitViewOptions={{ padding: 0.1, maxZoom: 1 }}
+          fitViewOptions={{ padding: 0.18, maxZoom: 1 }}
           minZoom={0.15}
           maxZoom={1.8}
           nodesConnectable={false}
@@ -135,13 +145,9 @@ export function SchemaGraph({ schema, layout, dark, onLayoutChange, onTableOpen,
           proOptions={{ hideAttribution: false }}
         >
           <FitView schema={schema} nonce={fitNonce} containerRef={flowContainerRef} />
-          <svg width="0" height="0" className="absolute"><defs>
-            <marker id="crowfoot" markerWidth="14" markerHeight="10" refX="12" refY="5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M12 1 L3 5 L12 9 M3 1 L3 9" fill="none" stroke="var(--muted-foreground)" strokeWidth="1.25" /></marker>
-            <marker id="one-cardinality" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M7 2 L7 8 M3 2 L3 8" fill="none" stroke="var(--muted-foreground)" strokeWidth="1.25" /></marker>
-          </defs></svg>
           <Background gap={20} size={1} color="var(--border)" />
           <Controls showInteractive={false} position="bottom-left" />
-          <MiniMap pannable zoomable position="bottom-right" style={{ width: 112, height: 76 }} nodeColor="var(--secondary)" maskColor="color-mix(in srgb, var(--background) 65%, transparent)" />
+          <MiniMap pannable zoomable position="bottom-right" style={{ width: 112, height: 76 }} nodeColor={dark ? '#4b5565' : '#a4adbb'} maskColor={dark ? '#14161acc' : '#dce2e8aa'} />
         </ReactFlow>
       </div>}
       {!schema.tables.length && <div className="absolute inset-11 grid place-items-center text-center text-sm text-muted-foreground"><div>Таблиц пока нет.<br />Создайте первую через редактор сценария.</div></div>}

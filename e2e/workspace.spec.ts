@@ -11,7 +11,7 @@ test('PostgreSQL, ERD, история, заметки и шаринг работ
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: 'Схема перед глазами.' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Начать со сценария' })).toBeVisible()
   await page.getByRole('button', { name: /Авиаперелёты.*7 таблиц/s }).click()
   await expect(page.getByRole('button', { name: 'Выполнить', exact: true })).toBeVisible({ timeout: 90000 })
   await expect(page.locator('.react-flow__node')).toHaveCount(7)
@@ -35,7 +35,7 @@ test('PostgreSQL, ERD, история, заметки и шаринг работ
   await page.getByRole('banner').getByRole('button', { name: 'Запросы', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Аэропорты', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'SELECT code, city FROM airports ORDER BY code;', exact: true })).toBeVisible()
-  await page.getByRole('banner').getByRole('button', { name: 'Запросы', exact: true }).click()
+  await page.getByRole('button', { name: 'Закрыть панель', exact: true }).click()
 
   await page.getByRole('button', { name: 'Открыть заметки' }).click()
   await expect(page.getByRole('heading', { name: 'Задания: авиаперелёты' })).toBeVisible()

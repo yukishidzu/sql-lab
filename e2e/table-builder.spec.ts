@@ -24,6 +24,7 @@ test('конструктор создаёт типизированную таб�
   await page.getByRole('region', { name: 'Колонка 3' }).getByRole('checkbox', { name: 'PK' }).check()
   await page.getByRole('region', { name: 'Колонка 3' }).getByRole('checkbox', { name: 'Составной FK' }).check()
 
+  await page.getByRole('button', { name: 'Показать DDL' }).click()
   const preview = page.getByRole('textbox', { name: 'DDL новой таблицы' })
   await expect(preview).toHaveValue(/FOREIGN KEY \("ticket_id", "flight_id"\) REFERENCES "ticket_flights" \("ticket_id", "flight_id"\)/)
   await page.getByRole('button', { name: 'Добавить в DDL' }).click()

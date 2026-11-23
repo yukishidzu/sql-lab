@@ -21,6 +21,20 @@ import { useMediaQuery } from '../lib/useMediaQuery'
 
 const emptySchema: SchemaInfo = { tables: [], relationships: [] }
 
+type PanelLayout = Record<string, number>
+
+function readPanelLayout(key: string, fallback: PanelLayout): PanelLayout {
+  try {
+    const value = JSON.parse(localStorage.getItem(key) ?? 'null') as unknown
+    if (value && typeof value === 'object' && Object.values(value).every((size) => typeof size === 'number' && size > 0 && size <= 100)) return value as PanelLayout
+  } catch {}
+  return fallback
+}
+
+function writePanelLayout(key: string, layout: PanelLayout) {
+  try { localStorage.setItem(key, JSON.stringify(layout)) } catch {}
+}
+
 export function WorkspacePage({ id }: { id: string }) {
   const [workspace, setWorkspace] = useState<Workspace | null>(null)
   const [adapter, setAdapter] = useState<DatabaseAdapter | null>(null)
@@ -44,6 +58,8 @@ export function WorkspacePage({ id }: { id: string }) {
   const [schemaVisible, setSchemaVisible] = useState(true)
   const [resultVisible, setResultVisible] = useState(true)
   const [panelsSwapped, setPanelsSwapped] = useState(true)
+  const [horizontalLayout, setHorizontalLayout] = useState<PanelLayout>(() => readPanelLayout(`sql-lab-horizontal:${id}`, { sql: 52, schema: 48 }))
+  const [verticalLayout, setVerticalLayout] = useState<PanelLayout>(() => readPanelLayout(`sql-lab-vertical:${id}`, { editor: 56, result: 44 }))
   const editorRef = useRef<SqlEditorHandle>(null)
   const introspectVersion = useRef(0)
   const { dark, change, theme } = useTheme()
@@ -174,15 +190,26 @@ export function WorkspacePage({ id }: { id: string }) {
     } catch (reason) { notify(reason instanceof Error ? reason.message : String(reason)) }
   }
 
+  const updateHorizontalLayout = (next: PanelLayout) => {
+    if (!schemaVisible) return
+    setHorizontalLayout(next)
+    writePanelLayout(`sql-lab-horizontal:${id}`, next)
+  }
+  const updateVerticalLayout = (next: PanelLayout) => {
+    if (!resultVisible) return
+    setVerticalLayout(next)
+    writePanelLayout(`sql-lab-vertical:${id}`, next)
+  }
+
   if (fatal) return <div className="grid h-full place-items-center p-6"><div className="max-w-md rounded-xl border border-border bg-card p-6 text-center"><Database className="mx-auto mb-3 text-destructive" /><h1 className="mb-2 font-semibold">Не удалось открыть базу</h1><p className="mb-4 whitespace-pre-wrap text-sm text-muted-foreground">{fatal}</p><Button onClick={() => { location.hash = '/' }}>На главную</Button></div></div>
   if (!workspace || !adapter) return <div className="grid h-full place-items-center bg-background"><div className="flex items-center gap-3 text-sm text-muted-foreground"><Loader2 className="animate-spin text-primary" />Загружаем PostgreSQL в браузере…</div></div>
 
   const editorPanel = <div className="flex h-full min-h-0 flex-col"><div className="flex h-11 items-center gap-2 border-b border-border bg-card px-3"><FileCode2 size={15} className="text-primary" /><span className="text-sm font-medium">SQL</span><span className="ml-auto text-[11px] text-muted-foreground">Ctrl/Cmd + Enter</span>{!schemaVisible && <Button variant="ghost" size="sm" className="hidden md:inline-flex" onClick={() => setSchemaVisible(true)}><Eye size={14} />Схема</Button>}<Button variant="ghost" size="icon" className="hidden size-8 md:inline-flex" onClick={() => setPanelsSwapped(!panelsSwapped)} aria-label="Поменять панели местами" title="Поменять панели местами"><ArrowLeftRight size={15} /></Button><Button variant="ghost" size="sm" onClick={() => setSaveOpen(true)}><Save size={14} />Сохранить</Button><Button size="sm" disabled={running || !workspace.draft.trim()} onClick={() => void runQuery()}><Play size={14} />Выполнить</Button></div><div className="min-h-0 flex-1"><SqlEditor ref={editorRef} value={workspace.draft} onChange={changeDraft} schema={schema} dark={dark} onRun={() => void runQuery()} onSave={() => setSaveOpen(true)} /></div></div>
   const schemaPanel = <SchemaGraph schema={schema} layout={workspace.scenario.layout} dark={dark} onLayoutChange={updateLayout} onTableOpen={setTableName} onColumnInsert={insertColumn} onHide={!mobile ? () => setSchemaVisible(false) : undefined} />
   const resultPanel = <div className="flex h-full min-h-0 flex-col"><div className="flex h-9 shrink-0 items-center border-b border-border bg-card px-3"><span className="text-xs font-medium">Результат</span><Button variant="ghost" size="icon" className="ml-auto size-7" onClick={() => setResultVisible(false)} aria-label="Скрыть результат" title="Скрыть результат"><EyeOff size={14} /></Button></div><div className="min-h-0 flex-1"><ResultTable result={result} error={error} running={running} /></div></div>
-  const sqlWorkspace = <div className="flex h-full min-h-0 flex-col"><div className="min-h-0 flex-1"><Group orientation="vertical"><Panel defaultSize="56%" minSize="25%">{editorPanel}</Panel>{resultVisible && <Separator className="h-1 cursor-row-resize bg-border hover:bg-primary" />}{resultVisible && <Panel minSize="20%">{resultPanel}</Panel>}</Group></div>{!resultVisible && <button className="flex h-9 shrink-0 cursor-pointer items-center justify-center gap-2 border-t border-border bg-card text-xs text-muted-foreground hover:bg-accent" onClick={() => setResultVisible(true)}><ChevronUp size={14} />Показать результат</button>}</div>
-  const desktopSqlPanel = <Panel key="sql" minSize="35%">{sqlWorkspace}</Panel>
-  const desktopSchemaPanel = <Panel key="schema" defaultSize="48%" minSize="28%">{schemaPanel}</Panel>
+  const sqlWorkspace = <div className="flex h-full min-h-0 flex-col"><div className="min-h-0 flex-1"><Group orientation="vertical" defaultLayout={verticalLayout} onLayoutChanged={updateVerticalLayout}><Panel id="editor" defaultSize="56%" minSize="25%">{editorPanel}</Panel>{resultVisible && <Separator className="h-1 cursor-row-resize bg-border hover:bg-primary" />}{resultVisible && <Panel id="result" minSize="20%">{resultPanel}</Panel>}</Group></div>{!resultVisible && <button className="flex h-9 shrink-0 cursor-pointer items-center justify-center gap-2 border-t border-border bg-card text-xs text-muted-foreground hover:bg-accent" onClick={() => setResultVisible(true)}><ChevronUp size={14} />Показать результат</button>}</div>
+  const desktopSqlPanel = <Panel key="sql" id="sql" minSize="35%">{sqlWorkspace}</Panel>
+  const desktopSchemaPanel = <Panel key="schema" id="schema" defaultSize="48%" minSize="28%">{schemaPanel}</Panel>
   const horizontalSeparator = <Separator key="horizontal-separator" className="w-1 cursor-col-resize bg-border transition-colors hover:bg-primary" />
 
   return (
@@ -202,9 +229,9 @@ export function WorkspacePage({ id }: { id: string }) {
         </div>
       </header>
       <div className="flex min-h-0 flex-1">
-        {sidebar && <div className="w-72 shrink-0 border-r border-border max-md:absolute max-md:inset-x-0 max-md:top-14 max-md:z-30 max-md:h-[calc(100%-3.5rem)] max-md:w-full"><QuerySidebar queries={queries} runs={runs} onOpen={(draft) => setWorkspace({ ...workspace, draft })} onRename={async (queryId, name) => { await store.queries.update(queryId, { name, updatedAt: Date.now() }); await loadQueries(id) }} onDelete={async (queryId) => { if (confirm('Удалить сохранённый запрос?')) { await store.queries.delete(queryId); await loadQueries(id) } }} onClose={() => setSidebar(false)} /></div>}
+        {sidebar && <div className="fixed inset-0 z-40"><button className="absolute inset-0 cursor-default bg-black/15" onClick={() => setSidebar(false)} aria-label="Закрыть панель запросов" /><div className="absolute bottom-0 left-0 top-14 w-80 max-w-[90vw] border-r border-border bg-card shadow-2xl"><QuerySidebar queries={queries} runs={runs} onOpen={(draft) => { setWorkspace({ ...workspace, draft }); setSidebar(false) }} onRename={async (queryId, name) => { await store.queries.update(queryId, { name, updatedAt: Date.now() }); await loadQueries(id) }} onDelete={async (queryId) => { if (confirm('Удалить сохранённый запрос?')) { await store.queries.delete(queryId); await loadQueries(id) } }} onClose={() => setSidebar(false)} /></div></div>}
         {!mobile ? <main className="min-w-0 flex-1">
-          <Group className="min-w-0 flex-1">
+          <Group className="min-w-0 flex-1" defaultLayout={horizontalLayout} onLayoutChanged={updateHorizontalLayout}>
             {panelsSwapped && desktopSqlPanel}
             {panelsSwapped && schemaVisible && horizontalSeparator}
             {schemaVisible && desktopSchemaPanel}

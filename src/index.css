@@ -22,6 +22,7 @@
   --primary-foreground: #ffffff;
   --ring: #4969dc;
   --destructive: #c43d4b;
+  --erd-edge: #64748b;
 }
 
 .dark {
@@ -42,6 +43,7 @@
   --primary-foreground: #11131a;
   --ring: #8ba1f1;
   --destructive: #ef7180;
+  --erd-edge: #94a3b8;
 }
 
 @theme inline {
@@ -75,6 +77,11 @@ button, a, input, textarea { -webkit-tap-highlight-color: transparent; }
 .sql-editor .cm-panels { background: var(--card); color: var(--foreground); }
 .sql-editor .cm-tooltip { background: var(--card); border: 1px solid var(--border); border-radius: 8px; }
 .sql-editor .cm-tooltip-autocomplete ul li[aria-selected] { background: var(--accent); color: var(--foreground); }
+.sql-editor .sql-completion::before { display: inline-block; min-width: 42px; margin-right: 7px; border-radius: 4px; background: var(--secondary); padding: 0 4px; color: var(--muted-foreground); font: 500 9px/16px Inter, sans-serif; text-align: center; }
+.sql-editor .sql-completion-keyword::before { content: 'keyword'; }
+.sql-editor .sql-completion-table::before { content: 'table'; }
+.sql-editor .sql-completion-column::before { content: 'column'; }
+.sql-editor .sql-completion-text::before { content: 'text'; }
 
 .markdown { color: var(--card-foreground); line-height: 1.65; }
 .markdown > :first-child { margin-top: 0; }

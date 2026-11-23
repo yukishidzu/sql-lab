@@ -35,6 +35,7 @@ export function TableBuilder({ open, onOpenChange, schema, onAdd }: {
     newColumn('name'),
   ])
   const [error, setError] = useState('')
+  const [previewOpen, setPreviewOpen] = useState(false)
   const update = (id: string, patch: Partial<DraftColumn>) => setColumns((current) => current.map((column) => column.id === id ? { ...column, ...patch } : column))
   const targetColumns = (column: DraftColumn) => {
     if (column.refTable === tableName && tableName) return columns.filter((item) => item.name).map((item) => ({ name: item.name, dataType: item.type }))
@@ -49,14 +50,14 @@ export function TableBuilder({ open, onOpenChange, schema, onAdd }: {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent title="Новая таблица" description="Настройте колонки и связи. Обычные колонки допускают NULL по умолчанию; PK всегда NOT NULL." className="flex h-[88vh] max-w-6xl flex-col">
+      <DialogContent title="Новая таблица" description="Колонки допускают NULL; PK — NOT NULL." className="flex h-[88vh] max-w-6xl flex-col">
         {error && <div role="alert" className="mb-3 rounded-lg bg-destructive/10 p-3 text-xs text-destructive">{error}</div>}
-        <label className="mb-4 block text-xs font-medium">Имя таблицы<Input className="mt-1 max-w-sm" value={tableName} placeholder="products" onChange={(event) => {
+        <label className="mb-3 flex flex-col gap-1 text-xs font-medium">Имя таблицы<Input className="max-w-sm" value={tableName} placeholder="products" onChange={(event) => {
           const next = event.target.value
           setColumns((current) => current.map((column) => column.refTable && column.refTable === tableName ? { ...column, refTable: next } : column))
           setTableName(next)
         }} /></label>
-        <div className="min-h-0 flex-1 space-y-3 overflow-auto pr-1">
+        <div className="min-h-0 flex-1 space-y-3 overflow-auto p-1 pt-2">
           {columns.map((column, index) => <section key={column.id} className="rounded-xl border border-border bg-secondary/25 p-3" aria-label={`Колонка ${index + 1}`}>
             <div className="grid gap-2 lg:grid-cols-[1fr_230px_auto]">
               <label className="text-[11px] text-muted-foreground">Название<Input value={column.name} placeholder="column_name" aria-label={`Имя колонки ${index + 1}`} className="mt-1 font-mono" onChange={(event) => update(column.id, { name: event.target.value })} /></label>
@@ -80,7 +81,7 @@ export function TableBuilder({ open, onOpenChange, schema, onAdd }: {
           </section>)}
         </div>
         <Button variant="outline" size="sm" className="mt-3 shrink-0 self-start" onClick={() => setColumns((current) => [...current, newColumn()])}><Plus size={14} />Добавить колонку</Button>
-        <div className="mt-4 shrink-0"><div className="mb-1 text-[11px] font-medium text-muted-foreground">Предпросмотр DDL</div><Textarea readOnly value={preview} className="h-36 resize-none font-mono text-[11px] leading-relaxed" aria-label="DDL новой таблицы" /></div>
+        <div className="mt-3 shrink-0"><Button variant="ghost" size="sm" className="px-0 text-muted-foreground" onClick={() => setPreviewOpen(!previewOpen)}>{previewOpen ? 'Скрыть DDL' : 'Показать DDL'}</Button>{previewOpen && <Textarea readOnly value={preview} className="mt-1 h-36 resize-none font-mono text-[11px] leading-relaxed" aria-label="DDL новой таблицы" />}</div>
         <div className="mt-4 flex shrink-0 justify-end gap-2"><Button variant="ghost" onClick={() => onOpenChange(false)}>Отмена</Button><Button onClick={submit}>Добавить в DDL</Button></div>
       </DialogContent>
     </Dialog>

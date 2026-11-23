@@ -6,6 +6,8 @@ import { EditorView, keymap } from '@codemirror/view'
 import { Prec } from '@codemirror/state'
 import type { SchemaInfo } from '../types'
 
+const popularKeywords = new Set(['SELECT', 'FROM', 'WHERE', 'JOIN', 'LEFT JOIN', 'GROUP BY', 'ORDER BY'])
+
 export type SqlEditorHandle = {
   insert: (text: string) => void
   focus: () => void
@@ -30,15 +32,28 @@ export const SqlEditor = forwardRef<SqlEditorHandle, Props>(function SqlEditor(
   handlersRef.current = { onRun, onSave }
   const schemaNamespace = useMemo(() => Object.fromEntries(schema.tables.map((table) => [
     table.name,
-    table.columns.map((column) => ({ label: column.name, type: 'property', detail: column.dataType })),
+    {
+      self: { label: table.name, type: 'table' },
+      children: table.columns.map((column) => ({ label: column.name, type: 'column', detail: column.dataType })),
+    },
   ])), [schema])
   const extensions = useMemo(() => [
     Prec.highest(keymap.of([
       { key: 'Mod-Enter', run: () => { handlersRef.current.onRun(); return true } },
       { key: 'Mod-s', run: () => { handlersRef.current.onSave(); return true } },
     ])),
-    sql({ dialect: PostgreSQL, schema: schemaNamespace, upperCaseKeywords: true }),
-    autocompletion({ activateOnTyping: true, maxRenderedOptions: 30 }),
+    sql({
+      dialect: PostgreSQL,
+      schema: schemaNamespace,
+      upperCaseKeywords: true,
+      keywordCompletion: (keyword) => ({ label: keyword, type: 'keyword', boost: popularKeywords.has(keyword) ? 90 : 0 }),
+    }),
+    autocompletion({
+      activateOnTyping: true,
+      maxRenderedOptions: 30,
+      icons: false,
+      optionClass: (completion) => `sql-completion sql-completion-${completion.type || 'text'}`,
+    }),
     EditorView.lineWrapping,
     EditorView.contentAttributes.of({ 'aria-label': label }),
   ], [schemaNamespace, label])
