@@ -4,7 +4,7 @@ type Cardinality = '1' | 'N'
 
 function Glyph({ x, y, kind, position, active, dimmed }: { x: number; y: number; kind: Cardinality; position: Position; active: boolean; dimmed: boolean }) {
   const direction = position === Position.Right ? 1 : -1
-  const edgeX = x + direction * 2
+  const edgeX = x
   const paths: string[] = []
   if (kind === '1') {
     for (const offset of [0, 4]) {
@@ -23,7 +23,7 @@ function Glyph({ x, y, kind, position, active, dimmed }: { x: number; y: number;
 }
 
 export function CrowFootEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, style }: EdgeProps<Edge<{ id: string; cardinality: '1:1' | '1:N'; onHover: (id: string | null) => void; active: boolean; dimmed: boolean }>>) {
-  const [path] = getSmoothStepPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, borderRadius: 12 })
+  const [path] = getSmoothStepPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, borderRadius: 6, offset: 12 })
   const active = data?.active ?? false
   const dimmed = data?.dimmed ?? false
   return (
