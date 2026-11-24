@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures'
 
 test('NULL вводится словом без дополнительной галочки', async ({ page }) => {
   await page.goto('/')

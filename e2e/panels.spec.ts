@@ -1,4 +1,30 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures'
+
+test('ширина заданий сохраняется, а у пустой базы панель свёрнута', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: /Интернет-магазин.*5 таблиц/s }).click()
+  await expect(page.getByRole('button', { name: 'Выполнить', exact: true })).toBeVisible({ timeout: 90000 })
+  const notes = page.getByRole('complementary', { name: 'Заметки и задания' })
+  const initial = await notes.boundingBox()
+  const separator = page.getByRole('separator', { name: 'Изменить ширину панели заданий' })
+  const box = await separator.boundingBox()
+  expect(box).not.toBeNull()
+  await page.mouse.move(box!.x + 2, box!.y + 200)
+  await page.mouse.down()
+  await page.mouse.move(box!.x - 100, box!.y + 200, { steps: 8 })
+  await page.mouse.up()
+  const resized = await notes.boundingBox()
+  expect(resized!.width).toBeGreaterThan(initial!.width + 90)
+  await page.reload()
+  await expect(page.getByRole('button', { name: 'Выполнить', exact: true })).toBeVisible({ timeout: 90000 })
+  const restored = await notes.boundingBox()
+  expect(Math.abs(restored!.width - resized!.width)).toBeLessThan(2)
+
+  await page.getByRole('button', { name: 'На главную' }).click()
+  await page.getByRole('button', { name: 'Пустая база', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Выполнить', exact: true })).toBeVisible({ timeout: 90000 })
+  await expect(page.getByRole('button', { name: 'Открыть заметки' })).toBeVisible()
+})
 
 test('схема и результат скрываются, колонки меняются местами', async ({ page }) => {
   await page.goto('/')

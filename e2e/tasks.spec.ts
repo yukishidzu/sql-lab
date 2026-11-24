@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page } from './fixtures'
 
 async function writeSql(page: Page, sql: string) {
   const editor = page.locator('.cm-content:visible')
@@ -11,8 +11,7 @@ test('автопроверка принимает эталон и позволя
   await page.goto('/')
   await page.getByRole('button', { name: /Интернет-магазин.*5 таблиц.*10 заданий/s }).click()
   await expect(page.getByRole('button', { name: 'Выполнить', exact: true })).toBeVisible({ timeout: 90000 })
-  await page.getByRole('button', { name: 'Открыть заметки' }).click()
-  await page.getByRole('button', { name: 'Проверка', exact: true }).click()
+  await page.getByRole('button', { name: 'Задания', exact: true }).click()
   await expect(page.getByText('1. Дорогие активные товары', { exact: true })).toBeVisible()
 
   await page.getByRole('button', { name: 'Проверить решение' }).click()
@@ -34,8 +33,7 @@ test('автопроверка принимает эталон и позволя
 
   await page.reload()
   await expect(page.getByRole('button', { name: 'Выполнить', exact: true })).toBeVisible({ timeout: 90000 })
-  await page.getByRole('button', { name: 'Открыть заметки' }).click()
-  await page.getByRole('button', { name: 'Проверка', exact: true }).click()
+  await page.getByRole('button', { name: 'Задания', exact: true }).click()
   await page.getByText('11. Число клиентов', { exact: true }).click()
   await expect(page.getByText('Выведите одно число — количество клиентов.')).toBeVisible()
 })

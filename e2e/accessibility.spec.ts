@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures'
 import AxeBuilder from '@axe-core/playwright'
 
 test('главная страница не имеет автоматически обнаруживаемых нарушений', async ({ page }) => {

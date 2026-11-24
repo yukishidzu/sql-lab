@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures'
 
 test('конструктор создаёт таблицу с PK/FK на суррогатный ключ', async ({ page }) => {
   await page.goto('/')

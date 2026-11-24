@@ -2,7 +2,7 @@ import type { PGliteWorker } from '@electric-sql/pglite/worker'
 import PGWorker from './pglite-worker.ts?worker'
 import type { DatabaseAdapter, DbRelationship, QueryResult, ScenarioDefinition, SchemaInfo, SqlValue } from '../types'
 import { quoteIdentifier } from '../lib/utils'
-import { bootstrapScenario } from '../lib/bootstrap'
+import { bootstrapScenario, bootstrapScenarioContents, type BootstrapProgress } from '../lib/bootstrap'
 
 type RawResult = {
   fields: { name: string; dataTypeID: number }[]
@@ -181,7 +181,7 @@ class PGliteAdapter implements DatabaseAdapter {
     this.scenario = scenario
     await this.db.transaction(async (tx) => {
       await tx.exec('DROP SCHEMA public CASCADE; CREATE SCHEMA public;')
-      await bootstrapScenario(tx, scenario)
+      await bootstrapScenarioContents(tx, scenario)
     })
     await this.db.syncToFs()
   }
@@ -216,25 +216,57 @@ class PGliteAdapter implements DatabaseAdapter {
   }
 }
 
-export async function openDatabase(workspaceId: string, scenario: ScenarioDefinition, initialized: boolean, initialDump?: string) {
+export type DatabaseOpenProgress = { percent: number; label: string }
+
+let engineWarmup: Promise<void> | null = null
+
+export function preloadDatabaseEngine() {
+  if (!engineWarmup) {
+    engineWarmup = (async () => {
+      const { PGliteWorker } = await import('@electric-sql/pglite/worker')
+      const worker = new PGWorker({ name: 'sql-lab-engine-warmup' })
+      const db = await PGliteWorker.create(worker, { id: 'sql-lab-engine-warmup', dataDir: 'memory://' })
+      await db.query('SELECT 1')
+      await db.close()
+    })().catch((error) => {
+      engineWarmup = null
+      throw error
+    })
+  }
+  return engineWarmup
+}
+
+export async function openDatabase(workspaceId: string, scenario: ScenarioDefinition, initialized: boolean, initialDump?: string, onProgress?: (progress: DatabaseOpenProgress) => void) {
+  onProgress?.({ percent: 5, label: 'Загружаем PostgreSQL-движок' })
   const { PGliteWorker } = await import('@electric-sql/pglite/worker')
+  onProgress?.({ percent: 15, label: 'Запускаем PostgreSQL в отдельном потоке' })
   const worker = new PGWorker({ name: `sql-lab-${workspaceId}` })
   const db = await PGliteWorker.create(worker, {
     id: `sql-lab-${workspaceId}`,
     dataDir: `idb://sql-lab-${workspaceId}`,
   })
   const adapter = new PGliteAdapter(db, scenario, workspaceId)
-  if (!initialized) {
-    try {
-      if (initialDump) await adapter.restore(initialDump)
-      else await bootstrapScenario(db, scenario)
+  try {
+    if (!initialized) {
+      if (initialDump) {
+        onProgress?.({ percent: 65, label: 'Восстанавливаем резервную копию' })
+        await adapter.restore(initialDump)
+      } else {
+        await bootstrapScenario(db, scenario, (progress: BootstrapProgress) => {
+          if (progress.stage === 'schema') onProgress?.({ percent: progress.completed ? 58 : 48, label: 'Создаём таблицы и связи' })
+          else if (progress.stage === 'data') onProgress?.({ percent: 58 + Math.round(progress.completed / Math.max(progress.total, 1) * 27), label: 'Добавляем учебные данные' })
+          else onProgress?.({ percent: 88, label: 'Настраиваем генераторы идентификаторов' })
+        })
+      }
+      onProgress?.({ percent: 93, label: 'Сохраняем базу в браузере' })
       await db.syncToFs()
-    } catch (error) {
-      await adapter.close()
-      throw error
     }
+    onProgress?.({ percent: 96, label: 'Читаем структуру базы' })
+    return adapter
+  } catch (error) {
+    await adapter.close()
+    throw error
   }
-  return adapter
 }
 
 export async function validateScenario(scenario: ScenarioDefinition) {

@@ -202,9 +202,6 @@ export const shopPreset: Preset = {
         { id: 32, order_id: 16, product_id: 11, quantity: 1, unit_price: 6000 },
       ],
     },
-    layout: {
-      categories: { x: 40, y: 30 }, products: { x: 350, y: 30 }, orders: { x: 680, y: 30 },
-      customers: { x: 1000, y: 30 }, order_items: { x: 500, y: 400 },
-    },
+    layout: {},
   },
 }

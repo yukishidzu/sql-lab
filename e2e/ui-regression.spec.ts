@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures'
 
 test('переименование запроса не меняет геометрию карточки', async ({ page }) => {
   await page.goto('/')
@@ -28,11 +28,11 @@ test('светлая ERD, компактная мини-карта и стаби
   expect(minimap?.width).toBeLessThanOrEqual(112)
   expect(minimap?.height).toBeLessThanOrEqual(76)
   await expect(page.locator('.react-flow__edge-text')).toHaveCount(0)
-  await expect(page.locator('[data-handleid="departure_airport:source"]')).toHaveCSS('opacity', '0')
+  await expect(page.locator('[data-nodeid="flights"][data-handleid="flights_departure_airport_fkey"]')).toHaveCSS('opacity', '0')
   await expect(page.locator('[data-id="boarding_passes"] [data-column="ticket_flight_id"] [data-keys]')).toHaveAttribute('data-keys', 'PKFK')
   const singleGutter = await page.locator('[data-id="flights"] [data-column="id"] [data-keys]').boundingBox()
   const compositeGutter = await page.locator('[data-id="boarding_passes"] [data-column="ticket_flight_id"] [data-keys]').boundingBox()
-  expect(singleGutter?.width).toBe(compositeGutter?.width)
+  expect(singleGutter?.width).toBeLessThan(compositeGutter?.width ?? 0)
   const singleKey = await page.locator('[data-id="flights"] [data-column="id"] [data-keys] > span').boundingBox()
   expect(Math.abs((singleGutter?.x ?? 0) + (singleGutter?.width ?? 0) / 2 - (singleKey?.x ?? 0) - (singleKey?.width ?? 0) / 2)).toBeLessThan(1)
   const columnStarts = await page.locator('[data-id="flights"] [data-column]').evaluateAll((columns) => columns.map((column) => column.children[1].getBoundingClientRect().x))
@@ -47,7 +47,6 @@ test('светлая ERD, компактная мини-карта и стаби
     })
   })
   await expect.poll(nodesWithinFlow).toBe(true)
-  await page.getByRole('button', { name: 'Открыть заметки' }).click()
   const notes = page.getByRole('complementary', { name: 'Заметки и задания' })
   await expect(notes).toHaveCSS('width', '340px')
   await page.getByRole('button', { name: 'Редактировать заметки' }).click()

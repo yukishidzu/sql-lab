@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from './fixtures'
 
 async function openAirline(page: Page) {
   await page.goto('/')
@@ -74,7 +74,7 @@ test('размеры сохраняются при скрытии, fitView не 
   await openAirline(page)
   const schema = page.getByRole('region', { name: 'ERD-схема базы данных' })
   const initialSchema = await schema.boundingBox()
-  await dragBy(page.locator('[role="separator"][aria-orientation="vertical"]'), -70, 0)
+  await dragBy(page.locator('[role="separator"][aria-orientation="vertical"]').first(), -70, 0)
   const resizedSchema = await schema.boundingBox()
   expect(resizedSchema?.width).not.toBe(initialSchema?.width)
   await page.getByRole('button', { name: 'Скрыть схему' }).click()

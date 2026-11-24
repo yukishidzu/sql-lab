@@ -247,10 +247,6 @@ export const airlinePreset: Preset = {
       ticket_flights: ticketFlights,
       boarding_passes: boardingPasses,
     },
-    layout: {
-      airports: { x: 30, y: 30 }, flights: { x: 330, y: 30 }, aircrafts: { x: 680, y: 30 },
-      ticket_flights: { x: 330, y: 500 }, tickets: { x: 680, y: 500 }, bookings: { x: 1010, y: 500 },
-      boarding_passes: { x: 30, y: 500 },
-    },
+    layout: {},
   },
 }

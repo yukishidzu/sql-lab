@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures'
 
 test('PostgreSQL и WASM загружаются только после открытия пространства', async ({ page }) => {
   const requests: string[] = []

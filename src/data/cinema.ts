@@ -219,9 +219,6 @@ export const cinemaPreset: Preset = {
         { id: 36, user_id: 7, movie_id: 2, watched_at: '2026-05-07 19:00:00', watched_min: 84, user_rating: null },
       ],
     },
-    layout: {
-      users: { x: 40, y: 40 }, subscriptions: { x: 350, y: 40 }, watch_history: { x: 680, y: 40 },
-      movies: { x: 1010, y: 40 }, movie_genres: { x: 1010, y: 380 }, genres: { x: 1330, y: 380 },
-    },
+    layout: {},
   },
 }
