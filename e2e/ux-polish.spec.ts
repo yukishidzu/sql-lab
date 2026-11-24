@@ -17,10 +17,11 @@ async function dragBy(locator: Locator, x: number, y: number) {
 
 test('главная сразу показывает сценарии без marketing hero', async ({ page }) => {
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: 'Начать со сценария' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Выберите учебный сценарий' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Мои рабочие пространства' })).toBeVisible()
   await expect(page.getByText('Схема перед глазами.')).toHaveCount(0)
   await expect(page.getByText('Для занятий и самостоятельной работы')).toHaveCount(0)
+  await expect(page.getByRole('link', { name: 'GitHub', exact: true })).toHaveAttribute('href', 'https://github.com/yukishidzu/sql-lab')
 })
 
 test('предпросмотр DDL скрыт, лейблы не обрезаются', async ({ page }) => {

@@ -187,7 +187,7 @@ const airlineTasks: [string, string][] = [
 
 export const airlinePreset: Preset = {
   id: 'airline', version: 3, name: 'Авиаперелёты', difficulty: 'Продвинутый', accent: '#5b7cfa',
-  description: 'Маршруты, пересадки и задержки. Сложные агрегаты и оконные функции.',
+  description: 'Аэропорты, рейсы, бронирования, билеты и пересадки.',
   scenario: {
     formatVersion: 1, name: 'Авиаперелёты', description: 'Учебная база авиаперевозчика', basePreset: { id: 'airline', version: 3 }, schemaSql, notes, tasks: defineTasks(airlineTasks, airlineSolutions, [1, 2, 5, 6, 7, 8, 9, 10]),
     starterQueries: [

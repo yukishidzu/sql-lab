@@ -74,7 +74,7 @@ const cinemaTasks: [string, string][] = [
 
 export const cinemaPreset: Preset = {
   id: 'cinema', version: 3, name: 'Онлайн-кинотеатр', difficulty: 'Средний', accent: '#a478e8',
-  description: 'Фильмы, жанры, подписки и просмотры. Подзапросы и составные агрегаты.',
+  description: 'Пользователи, подписки, фильмы и история просмотров.',
   scenario: {
     formatVersion: 1, name: 'Онлайн-кинотеатр', description: 'Учебная база онлайн-кинотеатра', basePreset: { id: 'cinema', version: 3 }, schemaSql, notes, tasks: defineTasks(cinemaTasks, cinemaSolutions, [1, 2, 3, 4, 7, 8, 9, 10]),
     starterQueries: [

@@ -11,7 +11,7 @@ test('PostgreSQL, ERD, история, заметки и шаринг работ
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: 'Начать со сценария' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Выберите учебный сценарий' })).toBeVisible()
   await page.getByRole('button', { name: /Авиаперелёты.*7 таблиц/s }).click()
   await expect(page.getByRole('button', { name: 'Выполнить', exact: true })).toBeVisible({ timeout: 90000 })
   await expect(page.locator('.react-flow__node')).toHaveCount(7)

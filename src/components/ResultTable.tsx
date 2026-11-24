@@ -22,7 +22,7 @@ export function ResultTable({ result, error, running }: { result: QueryResult | 
 
   if (running) return <div className="grid h-full min-h-32 place-items-center text-sm text-muted-foreground"><span className="flex items-center gap-2"><span className="size-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />PostgreSQL выполняет запрос…</span></div>
   if (error) return <div role="alert" className="h-full overflow-auto p-4"><div className="mb-2 text-sm font-medium text-destructive">Запрос не выполнен</div><pre className="whitespace-pre-wrap break-words font-mono text-xs leading-relaxed text-destructive/90">{error}</pre></div>
-  if (!result) return <div className="grid h-full min-h-32 place-items-center p-6 text-center text-sm text-muted-foreground"><div><div className="mb-1 font-medium text-foreground">Здесь появится результат</div>Напишите SQL и нажмите Ctrl/Cmd + Enter</div></div>
+  if (!result) return <div className="grid h-full min-h-32 place-items-center p-6 text-center text-sm text-muted-foreground"><div><div className="mb-1 font-medium text-foreground">Результат пока не получен</div>Выполните SQL-запрос, чтобы увидеть строки или сообщение об ошибке</div></div>
   if (!result.fields.length) return <div className="grid h-full min-h-32 place-items-center p-5 text-sm"><div className="flex items-center gap-2 text-green-600 dark:text-green-400"><Check size={18} />Готово{result.affectedRows !== undefined ? ` · затронуто строк: ${result.affectedRows}` : ''}<span className="text-muted-foreground">· {formatDuration(result.durationMs)}</span></div></div>
 
   return (

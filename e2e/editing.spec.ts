@@ -40,6 +40,15 @@ test('строки, DDL и резервная копия проходят пол
   await expect(page.locator('.react-flow__node')).toHaveCount(6)
 })
 
+test('текущие данные сохраняются в сценарий с понятным подтверждением', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: /Интернет-магазин.*5 таблиц/s }).click()
+  await expect(page.getByRole('button', { name: 'Выполнить', exact: true })).toBeVisible({ timeout: 90000 })
+  await page.getByRole('button', { name: 'Сценарий', exact: true }).click()
+  await page.getByRole('button', { name: 'Сохранить текущие данные в сценарий' }).click()
+  await expect(page.getByRole('status')).toContainText('Текущие данные сохранены в сценарии')
+})
+
 test('одна база работает в двух вкладках без SharedArrayBuffer', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: /Авиаперелёты.*7 таблиц/s }).click()

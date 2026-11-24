@@ -70,7 +70,7 @@ const shopTasks: [string, string][] = [
 
 export const shopPreset: Preset = {
   id: 'shop', version: 3, name: 'Интернет-магазин', difficulty: 'Базовый', accent: '#34a67c',
-  description: 'Каталог, клиенты и заказы. Базовые выборки, соединения и агрегатные функции.',
+  description: 'Товары, категории, клиенты и заказы.',
   scenario: {
     formatVersion: 1, name: 'Интернет-магазин', description: 'Учебная база интернет-магазина', basePreset: { id: 'shop', version: 3 }, schemaSql, notes, tasks: defineTasks(shopTasks, shopSolutions, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]),
     starterQueries: [
