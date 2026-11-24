@@ -29,13 +29,14 @@ async function hashScenario(scenario: ScenarioDefinition) {
 }
 
 export async function createShareUrl(scenario: ScenarioDefinition) {
-  const envelope: Envelope = { v: 1, base: scenario.basePreset, hash: await hashScenario(scenario) }
-  if (scenario.basePreset) {
-    const preset = getPreset(scenario.basePreset.id)
-    if (!preset || preset.version !== scenario.basePreset.version) throw new Error('Версия пресета больше не поддерживается. Используйте экспорт файла.')
+  const sharedScenario = { ...scenario, mode: 'learn' as const }
+  const envelope: Envelope = { v: 1, base: sharedScenario.basePreset, hash: await hashScenario(sharedScenario) }
+  if (sharedScenario.basePreset) {
+    const preset = getPreset(sharedScenario.basePreset.id)
+    if (!preset || preset.version !== sharedScenario.basePreset.version) throw new Error('Версия пресета больше не поддерживается. Используйте экспорт файла.')
     const differ = new DiffMatchPatch()
-    envelope.patch = differ.patch_toText(differ.patch_make(JSON.stringify(preset.scenario), JSON.stringify(scenario)))
-  } else envelope.scenario = scenario
+    envelope.patch = differ.patch_toText(differ.patch_make(JSON.stringify(preset.scenario), JSON.stringify(sharedScenario)))
+  } else envelope.scenario = sharedScenario
   const encoded = toBase64Url(gzipSync(strToU8(JSON.stringify(envelope)), { level: 9 }))
   if (encoded.length > 60000) throw new Error('Сценарий слишком большой для ссылки. Экспортируйте файл SQL Lab.')
   return `${location.origin}${location.pathname}#/import/${encoded}`

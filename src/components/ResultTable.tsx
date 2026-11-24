@@ -35,7 +35,7 @@ export function ResultTable({ result, error, running }: { result: QueryResult | 
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-auto">
-        <table className="w-full border-collapse text-left font-mono text-xs">
+        <table className="w-full border-collapse text-left font-mono text-xs max-md:text-sm">
           <thead className="sticky top-0 z-10 bg-secondary/95 backdrop-blur"><tr>{result.fields.map((field, fieldIndex) => <th key={`${field.name}:${fieldIndex}`} className="whitespace-nowrap border-b border-border px-3 py-2 font-medium text-secondary-foreground">{field.name}</th>)}</tr></thead>
           <tbody>{rows.map((values, rowIndex) => <tr key={page * 50 + rowIndex} className="hover:bg-accent/45">{values.map((value, fieldIndex) => <td key={fieldIndex} title={displayValue(value)} className={cn('max-w-72 truncate border-b border-border/60 px-3 py-2', value === null && 'italic text-muted-foreground')}>{displayValue(value)}</td>)}</tr>)}</tbody>
         </table>

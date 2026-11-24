@@ -19,12 +19,13 @@ const emptyTask = (): SqlTask => ({
 
 type StoredTaskResult = { result: TaskCheckResult; signature: string; completed: boolean }
 
-export function TaskPanel({ tasks, onChange, onCheck, currentSql, storageKey }: {
+export function TaskPanel({ tasks, onChange, onCheck, currentSql, storageKey, learnMode = false }: {
   tasks: SqlTask[]
   onChange: (tasks: SqlTask[]) => void
   onCheck: (task: SqlTask) => Promise<TaskCheckResult>
   currentSql: string
   storageKey: string
+  learnMode?: boolean
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(tasks[0]?.id ?? null)
   const [editingTask, setEditingTask] = useState<SqlTask | null>(null)
@@ -67,7 +68,7 @@ export function TaskPanel({ tasks, onChange, onCheck, currentSql, storageKey }: 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="min-h-0 flex-1 overflow-auto p-2">
-        {!tasks.length && <div className="px-3 py-8 text-center text-sm text-muted-foreground">Добавьте первое задание и эталонный запрос для его проверки.</div>}
+        {!tasks.length && <div className="px-3 py-8 text-center text-sm text-muted-foreground">{learnMode ? 'В этом сценарии пока нет заданий.' : 'Добавьте первое задание и эталонный запрос для его проверки.'}</div>}
         {tasks.map((task, index) => {
           const selected = selectedId === task.id
           const stored = results[task.id]
@@ -76,15 +77,15 @@ export function TaskPanel({ tasks, onChange, onCheck, currentSql, storageKey }: 
           const result = currentResult ?? (completed ? { status: 'passed' as const, message: 'Задание зачтено. Изменение текущего запроса не отменяет этот результат.' } : undefined)
           return <section key={task.id} className="mb-1 overflow-hidden rounded-lg border border-border/70">
             <div className="flex items-center bg-secondary/35">
-              <button className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 px-2.5 py-2 text-left text-xs font-medium hover:bg-accent" onClick={() => setSelectedId(selected ? null : task.id)} aria-expanded={selected}>
+              <button className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 px-2.5 py-2 text-left text-xs font-medium max-md:text-sm hover:bg-accent" onClick={() => setSelectedId(selected ? null : task.id)} aria-expanded={selected}>
                 {selected ? <ChevronDown size={14} className="shrink-0" /> : <ChevronRight size={14} className="shrink-0" />}
                 <span className="truncate">{index + 1}. {task.title}</span>
                 {completed && <CheckCircle2 size={14} className="ml-auto shrink-0 text-green-600" />}
               </button>
-              <Button variant="ghost" size="icon" className="mr-1 size-7" aria-label={`Редактировать задание ${index + 1}`} onClick={() => { setEditingTask(structuredClone(task)); setFormError('') }}><Edit3 size={13} /></Button>
+              {!learnMode && <Button variant="ghost" size="icon" className="mr-1 size-7" aria-label={`Редактировать задание ${index + 1}`} onClick={() => { setEditingTask(structuredClone(task)); setFormError('') }}><Edit3 size={13} /></Button>}
             </div>
             {selected && <div className="border-t border-border/70 p-3">
-              <div className="markdown text-xs"><ReactMarkdown remarkPlugins={[remarkGfm]}>{task.prompt}</ReactMarkdown></div>
+              <div className="markdown text-xs max-md:text-sm"><ReactMarkdown remarkPlugins={[remarkGfm]}>{task.prompt}</ReactMarkdown></div>
               <div className="mt-3 flex flex-wrap gap-1"><Badge>{task.rules.compareOrder ? 'Порядок важен' : 'Любой порядок'}</Badge><Badge>{task.rules.compareColumns ? 'Имена колонок' : 'Любые алиасы'}</Badge></div>
               <Button size="sm" className="mt-3 w-full" disabled={checkingId !== null} onClick={() => void check(task)}>
                 {checkingId === task.id ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}Проверить решение
@@ -96,8 +97,8 @@ export function TaskPanel({ tasks, onChange, onCheck, currentSql, storageKey }: 
           </section>
         })}
       </div>
-      <div className="shrink-0 border-t border-border p-2"><Button variant="outline" size="sm" className="w-full" onClick={() => { setEditingTask(emptyTask()); setFormError('') }}><Plus size={14} />Новое задание</Button></div>
-      <Dialog open={editingTask !== null} onOpenChange={(open) => { if (!open) setEditingTask(null) }}>
+      {!learnMode && <div className="shrink-0 border-t border-border p-2"><Button variant="outline" size="sm" className="w-full" onClick={() => { setEditingTask(emptyTask()); setFormError('') }}><Plus size={14} />Новое задание</Button></div>}
+      <Dialog open={!learnMode && editingTask !== null} onOpenChange={(open) => { if (!open) setEditingTask(null) }}>
         <DialogContent title={tasks.some((task) => task.id === editingTask?.id) ? 'Редактирование задания' : 'Новое задание'} description="Эталонный запрос выполняется в той же базе и не показывается в условии.">
           {editingTask && <div className="space-y-3">
             <label className="block text-xs font-medium">Название<Input className="mt-1" value={editingTask.title} onChange={(event) => setEditingTask({ ...editingTask, title: event.target.value })} aria-label="Название задания" /></label>

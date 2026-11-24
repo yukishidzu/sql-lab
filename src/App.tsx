@@ -4,6 +4,7 @@ import { HomePage } from './pages/HomePage'
 import { decodeScenario } from './lib/share'
 import { createWorkspaceRecord } from './lib/store'
 import { Button } from './components/ui/button'
+import type { WorkspaceMode } from './types'
 
 const WorkspacePage = lazy(() => import('./pages/WorkspacePage').then((module) => ({ default: module.WorkspacePage })))
 
@@ -28,7 +29,11 @@ export default function App() {
     return () => removeEventListener('hashchange', update)
   }, [])
   const workspace = hash.match(/^#\/w\/([a-z0-9-]+)/i)
-  if (workspace) return <Suspense fallback={<div className="grid h-full place-items-center"><Loader2 className="animate-spin text-primary" /></div>}><WorkspacePage id={workspace[1]} /></Suspense>
+  if (workspace) {
+    const requestedMode = new URLSearchParams(hash.split('?')[1]).get('mode')
+    const mode = requestedMode === 'edit' || requestedMode === 'learn' ? requestedMode as WorkspaceMode : undefined
+    return <Suspense fallback={<div className="grid h-full place-items-center"><Loader2 className="animate-spin text-primary" /></div>}><WorkspacePage id={workspace[1]} requestedMode={mode} /></Suspense>
+  }
   if (hash.startsWith('#/import/')) return <ImportPage payload={hash.slice('#/import/'.length)} />
   return <HomePage />
 }

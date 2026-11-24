@@ -68,14 +68,24 @@ const nodeTypes = { table: TableNodeCard }
 
 function FitView({ schemaSignature, nonce, containerRef }: { schemaSignature: string; nonce: number; containerRef: RefObject<HTMLDivElement | null> }) {
   const { fitView } = useReactFlow()
+  const hasFitted = useRef(false)
+  const previousWidth = useRef(0)
   useEffect(() => {
+    hasFitted.current = false
     let firstFrame = 0
     let secondFrame = 0
     const fit = () => {
+      const width = containerRef.current?.getBoundingClientRect().width ?? 0
+      const becameVisible = previousWidth.current === 0 && width > 0
+      previousWidth.current = width
+      if (!width || (becameVisible && hasFitted.current)) return
       cancelAnimationFrame(firstFrame)
       cancelAnimationFrame(secondFrame)
       firstFrame = requestAnimationFrame(() => {
-        secondFrame = requestAnimationFrame(() => { void fitView({ padding: 0.18, maxZoom: 1, duration: 150 }) })
+        secondFrame = requestAnimationFrame(() => {
+          hasFitted.current = true
+          void fitView({ padding: 0.18, maxZoom: 1, duration: 150 })
+        })
       })
     }
     const observer = new ResizeObserver(fit)

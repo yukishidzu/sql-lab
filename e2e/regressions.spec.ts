@@ -27,7 +27,7 @@ test('повторяющиеся имена колонок сохраняют н
   await expect(page.getByText('Показ ограничен интерфейсом')).toHaveCount(0)
 })
 
-test('проверка привязана к SQL, сохраняется и не меняет базу через WITH', async ({ page }) => {
+test('зачёт сохраняется при смене SQL, а WITH не меняет базу', async ({ page }) => {
   await openShop(page)
   await page.getByRole('button', { name: 'Задания', exact: true }).click()
   const correct = 'SELECT name, price, stock_qty FROM products WHERE is_active AND price > 3000 ORDER BY price DESC, id'
@@ -35,7 +35,7 @@ test('проверка привязана к SQL, сохраняется и не
   await page.getByRole('button', { name: 'Проверить решение' }).click()
   await expect(page.getByRole('status')).toContainText('Задание принято')
   await writeSql(page, 'SELECT name, price, stock_qty FROM products WHERE is_active AND price = 0 ORDER BY price DESC, id')
-  await expect(page.getByRole('status')).toHaveCount(0)
+  await expect(page.getByRole('status')).toContainText('Задание зачтено')
   await writeSql(page, correct)
   await expect(page.getByRole('status')).toContainText('Задание принято')
   await page.reload()

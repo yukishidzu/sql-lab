@@ -6,15 +6,15 @@ function GuideIcon({ children }: { children: ReactNode }) {
   return <span className="mx-0.5 inline-flex size-6 translate-y-[-2px] items-center justify-center rounded-md border border-border bg-secondary align-middle text-foreground">{children}</span>
 }
 
-type GuideStep = { selector: string; additionalSelectors?: string[]; title: string; text: ReactNode }
+type GuideStep = { selector: string; additionalSelectors?: string[]; title: string; text: ReactNode; mobileTab?: 'schema' | 'sql' | 'materials' | 'tasks' }
 
 const guideSteps: GuideStep[] = [
-  { selector: '[data-guide="sql-editor"]', title: 'SQL-редактор и запуск', text: 'Пишите запросы здесь — автодополнение подскажет команды, таблицы и колонки. Запускайте через «Выполнить» (Ctrl/Cmd + Enter), сохраняйте через Ctrl/Cmd + S. Результат и ошибки появятся ниже.' },
-  { selector: '[data-guide="schema"]', title: 'Интерактивная схема', text: 'Клик по таблице открывает её данные, клик по колонке вставляет имя прямо в редактор, а наведение на линию подсвечивает связь. Сущности можно свободно перетаскивать, а всю схему — масштабировать.' },
-  { selector: '[data-guide="schema-controls"]', additionalSelectors: ['.react-flow__controls', '.react-flow__minimap'], title: 'Управление схемой', text: <><GuideIcon><List size={13} /></GuideIcon> — дерево таблиц, <GuideIcon><LayoutGrid size={13} /></GuideIcon> — автораскладка, <GuideIcon><EyeOff size={13} /></GuideIcon> — скрытие схемы. <GuideIcon><Plus size={13} /></GuideIcon> и <GuideIcon><Minus size={13} /></GuideIcon> — масштаб, <GuideIcon><Scan size={13} /></GuideIcon> — вся схема, <GuideIcon><Map size={13} /></GuideIcon> — мини-карта.</> },
+  { selector: '[data-guide="sql-editor"]', mobileTab: 'sql', title: 'SQL-редактор и запуск', text: 'Пишите запросы здесь — автодополнение подскажет команды, таблицы и колонки. Запускайте через «Выполнить» (Ctrl/Cmd + Enter), сохраняйте через Ctrl/Cmd + S. Результат и ошибки появятся ниже.' },
+  { selector: '[data-guide="schema"]', mobileTab: 'schema', title: 'Интерактивная схема', text: 'Клик по таблице открывает её данные, клик по колонке вставляет имя прямо в редактор, а наведение на линию подсвечивает связь. Сущности можно свободно перетаскивать, а всю схему — масштабировать.' },
+  { selector: '[data-guide="schema-controls"]', mobileTab: 'schema', additionalSelectors: ['.react-flow__controls', '.react-flow__minimap'], title: 'Управление схемой', text: <><GuideIcon><List size={13} /></GuideIcon> — дерево таблиц, <GuideIcon><LayoutGrid size={13} /></GuideIcon> — автораскладка, <GuideIcon><EyeOff size={13} /></GuideIcon> — скрытие схемы. <GuideIcon><Plus size={13} /></GuideIcon> и <GuideIcon><Minus size={13} /></GuideIcon> — масштаб, <GuideIcon><Scan size={13} /></GuideIcon> — вся схема, <GuideIcon><Map size={13} /></GuideIcon> — мини-карта.</> },
   { selector: '[data-guide="swap-panels"]', additionalSelectors: ['[data-guide="hide-result"]', '[data-guide="hide-schema"]', '[role="separator"]'], title: 'Настройка экрана', text: <><GuideIcon><ArrowLeftRight size={13} /></GuideIcon> меняет SQL и схему местами, <GuideIcon><EyeOff size={13} /></GuideIcon> скрывает результат или схему. Тяните разделители между блоками, чтобы менять их размеры.</> },
   { selector: '[data-guide="queries"]', title: 'Запросы и история', text: 'Все сохранённые запросы и история запусков собраны здесь — можно подписывать удачные решения и возвращаться к прошлым вариантам.' },
-  { selector: '[data-guide="notes"]', title: 'Материалы и задания', text: 'В «Материалах» находятся описание базы и таблиц, а во вкладке «Задания» — условия и проверка SQL.' },
+  { selector: '[data-guide="notes"]', mobileTab: 'materials', title: 'Материалы и задания', text: 'В «Материалах» находятся описание базы и таблиц, а во вкладке «Задания» — условия и проверка SQL.' },
   { selector: '[data-guide="workspace-actions"]', title: 'Сценарий, ссылка и помощь', text: <>В «Сценарии» вы правите DDL и создаёте таблицы. <GuideIcon><Link2 size={13} /></GuideIcon> и <GuideIcon><Download size={13} /></GuideIcon> помогают поделиться базой или сохранить копию. <GuideIcon><Moon size={13} /></GuideIcon> переключает тему, а <GuideIcon><CircleHelp size={13} /></GuideIcon> снова открывает этот гайд.</> },
 ]
 
@@ -26,8 +26,8 @@ const isVisible = (selector: string) => {
   return Boolean(rect && rect.width > 0 && rect.height > 0)
 }
 
-export function InterfaceGuide({ onClose }: { onClose: () => void }) {
-  const [steps] = useState(() => guideSteps.filter((step) => selectorsFor(step).some(isVisible)))
+export function InterfaceGuide({ onClose, mobile = false, onStepChange, onCardResize }: { onClose: () => void; mobile?: boolean; onStepChange?: (tab: 'schema' | 'sql' | 'materials' | 'tasks') => void; onCardResize?: (height: number) => void }) {
+  const [steps] = useState(() => guideSteps.filter((step) => selectorsFor(step).some(isVisible) || (mobile && step.mobileTab)))
   const [stepIndex, setStepIndex] = useState(0)
   const [targets, setTargets] = useState<Rect[]>([])
   const [cardStyle, setCardStyle] = useState<CSSProperties>({})
@@ -51,6 +51,17 @@ export function InterfaceGuide({ onClose }: { onClose: () => void }) {
     }))
     setTargets(next)
   }, [step])
+
+  useEffect(() => {
+    if (!mobile || !onCardResize || !cardRef.current) return
+    const observer = new ResizeObserver(([entry]) => onCardResize(entry.contentRect.height))
+    observer.observe(cardRef.current)
+    return () => observer.disconnect()
+  }, [mobile, onCardResize])
+
+  useEffect(() => {
+    if (step?.mobileTab) onStepChange?.(step.mobileTab)
+  }, [step, onStepChange])
 
   useLayoutEffect(() => {
     updateTarget()
@@ -124,7 +135,7 @@ export function InterfaceGuide({ onClose }: { onClose: () => void }) {
       <div ref={cardRef} role="dialog" aria-modal="true" aria-labelledby="interface-guide-title" className="fixed w-[calc(100%-1.5rem)] max-w-sm rounded-xl border border-border bg-card p-4 text-card-foreground shadow-2xl" style={cardStyle}>
         <div className="flex items-center gap-2"><span className="text-xs font-medium text-muted-foreground">{stepIndex + 1} / {steps.length}</span><div className="h-1 flex-1 overflow-hidden rounded-full bg-secondary"><div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${(stepIndex + 1) / steps.length * 100}%` }} /></div><Button variant="ghost" size="icon" className="size-7" onClick={onClose} aria-label="Закрыть гайд"><X size={15} /></Button></div>
         <h2 id="interface-guide-title" className="mt-3 text-base font-semibold">{step.title}</h2>
-        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{step.text}</p>
+        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground max-md:text-[15px]">{step.text}</p>
         <div className="mt-4 flex items-center justify-between gap-2">{!last && <Button variant="ghost" size="sm" onClick={onClose}>Пропустить</Button>}<div className="ml-auto flex gap-2">{stepIndex > 0 && <Button variant="outline" size="sm" onClick={() => setStepIndex((index) => index - 1)}><ArrowLeft size={14} />Назад</Button>}<Button size="sm" data-guide-next onClick={() => { if (last) onClose(); else setStepIndex((index) => index + 1) }}>{last ? 'Начать работу' : 'Далее'}{last ? <Check size={14} /> : <ArrowRight size={14} />}</Button></div></div>
       </div>
     </div>

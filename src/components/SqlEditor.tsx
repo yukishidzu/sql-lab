@@ -80,7 +80,7 @@ export const SqlEditor = forwardRef<SqlEditorHandle, Props>(function SqlEditor(
       minHeight="220px"
       basicSetup={{ lineNumbers: true, highlightActiveLine: true, autocompletion: false }}
       aria-label={label}
-      className="sql-editor h-full min-h-0 overflow-hidden text-[13px]"
+      className="sql-editor h-full min-h-0 overflow-hidden text-[13px] max-md:text-sm"
     />
   )
 })

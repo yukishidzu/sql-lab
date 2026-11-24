@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowLeft, ArrowLeftRight, Check, ChevronDown, ChevronUp, CircleHelp, Database, Download, Eye, EyeOff, FileCode2, History, Link2, MoreHorizontal, Moon, Play, Plus, Save, Settings2, Sun } from 'lucide-react'
+import { ArrowLeft, ArrowLeftRight, Check, ChevronUp, CircleHelp, Database, Download, Eye, EyeOff, FileCode2, History, Link2, MoreHorizontal, Moon, Play, Plus, Save, Settings2, Sun } from 'lucide-react'
 import { Group, Panel, Separator } from 'react-resizable-panels'
 import { store, recordRun, saveNamedQuery, touchWorkspace } from '../lib/store'
-import type { DatabaseAdapter, QueryResult, QueryRun, SavedQuery, ScenarioDefinition, SchemaInfo, SqlTask, SqlValue, Workspace } from '../types'
+import type { DatabaseAdapter, QueryResult, QueryRun, SavedQuery, ScenarioDefinition, SchemaInfo, SqlTask, SqlValue, Workspace, WorkspaceMode } from '../types'
 import { SqlEditor, type SqlEditorHandle } from '../components/SqlEditor'
 import { ResultTable } from '../components/ResultTable'
 import { SchemaGraph } from '../components/SchemaGraph'
@@ -44,7 +44,7 @@ function readNotesWidth(workspaceId: string) {
   } catch { return 340 }
 }
 
-export function WorkspacePage({ id }: { id: string }) {
+export function WorkspacePage({ id, requestedMode }: { id: string; requestedMode?: WorkspaceMode }) {
   const [workspace, setWorkspace] = useState<Workspace | null>(null)
   const [adapter, setAdapter] = useState<DatabaseAdapter | null>(null)
   const [schema, setSchema] = useState<SchemaInfo>(emptySchema)
@@ -65,14 +65,16 @@ export function WorkspacePage({ id }: { id: string }) {
   const [shareUrl, setShareUrl] = useState('')
   const [copied, setCopied] = useState(false)
   const [toast, setToast] = useState('')
-  const [mobileTab, setMobileTab] = useState<'schema' | 'sql' | 'notes'>('sql')
+  const [mobileTab, setMobileTab] = useState<'schema' | 'sql' | 'materials' | 'tasks'>('sql')
   const [guideOpen, setGuideOpen] = useState(false)
+  const [guideCardHeight, setGuideCardHeight] = useState(0)
   const [schemaVisible, setSchemaVisible] = useState(true)
   const [resultVisible, setResultVisible] = useState(true)
   const [panelsSwapped, setPanelsSwapped] = useState(true)
   const [horizontalLayout, setHorizontalLayout] = useState<PanelLayout>(() => readPanelLayout(`sql-lab-horizontal:${id}`, { sql: 52, schema: 48 }))
   const [verticalLayout, setVerticalLayout] = useState<PanelLayout>(() => readPanelLayout(`sql-lab-vertical:${id}`, { editor: 56, result: 44 }))
   const editorRef = useRef<SqlEditorHandle>(null)
+  const initialMode = useRef(requestedMode)
   const introspectVersion = useRef(0)
   const { dark, change, theme } = useTheme()
   const mobile = useMediaQuery('(max-width: 767px)')
@@ -103,6 +105,10 @@ export function WorkspacePage({ id }: { id: string }) {
           const localDraft = localStorage.getItem(`sql-lab-editor-draft:${id}`)
           if (localDraft !== null) record.draft = localDraft
         } catch {}
+        if (initialMode.current) {
+          record.scenario = { ...record.scenario, mode: initialMode.current }
+          await touchWorkspace(id, { scenario: record.scenario })
+        }
         setNotesCollapsed(record.scenario.basePreset === null && Object.keys(record.scenario.data).length === 0)
         setWorkspace(record)
         void navigator.storage?.persist?.()
@@ -127,16 +133,28 @@ export function WorkspacePage({ id }: { id: string }) {
   }, [id])
 
   useEffect(() => {
+    if (!workspace || !requestedMode || workspace.scenario.mode === requestedMode) return
+    const scenario = { ...workspace.scenario, mode: requestedMode }
+    setWorkspace({ ...workspace, scenario })
+    void touchWorkspace(id, { scenario })
+  }, [requestedMode, workspace, id])
+
+  useEffect(() => {
     if (!adapter) return
     try { if (localStorage.getItem('sql-lab-interface-guide-v1')) return } catch {}
     const timer = setTimeout(() => setGuideOpen(true), 400)
     return () => clearTimeout(timer)
   }, [adapter])
 
+  const changeGuideTab = useCallback((tab: 'schema' | 'sql' | 'materials' | 'tasks') => {
+    if (mobile) setMobileTab(tab)
+  }, [mobile])
+  const changeGuideCardHeight = useCallback((height: number) => { setGuideCardHeight(height) }, [])
   const closeGuide = useCallback(() => {
     setGuideOpen(false)
+    if (mobile) setMobileTab('sql')
     try { localStorage.setItem('sql-lab-interface-guide-v1', 'seen') } catch {}
-  }, [])
+  }, [mobile])
 
   useEffect(() => {
     if (!workspace) return
@@ -150,6 +168,7 @@ export function WorkspacePage({ id }: { id: string }) {
     try { localStorage.setItem(`sql-lab-editor-draft:${id}`, draft) } catch {}
   }
   const changeNotes = (notes: string) => {
+    if (workspace?.scenario.mode === 'learn') return
     setWorkspace((current) => current ? { ...current, notes, scenario: { ...current.scenario, notes } } : current)
     void touchWorkspace(id, { notes })
   }
@@ -158,6 +177,7 @@ export function WorkspacePage({ id }: { id: string }) {
     try { localStorage.setItem(`sql-lab-notes-width:${id}`, String(width)) } catch {}
   }, [id])
   const changeTasks = (tasks: SqlTask[]) => {
+    if (workspace?.scenario.mode === 'learn') return
     setWorkspace((current) => {
       if (!current) return current
       const scenario = { ...current.scenario, tasks }
@@ -225,7 +245,7 @@ export function WorkspacePage({ id }: { id: string }) {
     return data
   }, [adapter, schema])
   const applyScenario = async (scenario: ScenarioDefinition) => {
-    if (!adapter || !workspace) return
+    if (!adapter || !workspace || workspace.scenario.mode === 'learn') return
     const { validateScenario } = await import('../db/client')
     const next = { ...scenario, notes: workspace.notes }
     await validateScenario(next)
@@ -264,6 +284,7 @@ export function WorkspacePage({ id }: { id: string }) {
   if (fatal) return <div className="grid h-full place-items-center p-6"><div className="max-w-md rounded-xl border border-border bg-card p-6 text-center"><Database className="mx-auto mb-3 text-destructive" /><h1 className="mb-2 font-semibold">Не удалось открыть базу</h1><p className="mb-4 whitespace-pre-wrap text-sm text-muted-foreground">{fatal}</p><Button onClick={() => { location.hash = '/' }}>На главную</Button></div></div>
   if (!workspace || !adapter) return <DatabaseLoading progress={loadingProgress} />
 
+  const learnMode = workspace.scenario.mode === 'learn'
   const editorPanel = <div data-guide="sql-editor" className="flex h-full min-h-0 flex-col"><div className="flex h-11 items-center gap-2 border-b border-border bg-card px-3"><FileCode2 size={15} className="text-primary" /><span className="text-sm font-medium">SQL</span><span className="ml-auto" />{!schemaVisible && <Button variant="ghost" size="sm" className="hidden md:inline-flex" onClick={() => setSchemaVisible(true)}><Eye size={14} />Схема</Button>}<Button data-guide="swap-panels" variant="ghost" size="icon" className="hidden size-8 md:inline-flex" onClick={() => setPanelsSwapped(!panelsSwapped)} aria-label="Поменять панели местами" title="Поменять панели местами"><ArrowLeftRight size={15} /></Button><Button variant="ghost" size="sm" title="Сохранить — Ctrl/Cmd + S" onClick={() => setSaveOpen(true)}><Save size={14} />Сохранить</Button><Button data-guide="run-query" size="sm" title="Выполнить — Ctrl/Cmd + Enter" disabled={running || !workspace.draft.trim()} onClick={() => void runQuery()}><Play size={14} />Выполнить</Button></div><div className="min-h-0 flex-1"><SqlEditor ref={editorRef} value={workspace.draft} onChange={changeDraft} schema={schema} dark={dark} onRun={() => void runQuery()} onSave={() => setSaveOpen(true)} /></div></div>
   const schemaPanel = <SchemaGraph schema={schema} layout={workspace.scenario.layout} dark={dark} onLayoutChange={updateLayout} onTableOpen={setTableName} onColumnInsert={insertColumn} onHide={!mobile ? () => setSchemaVisible(false) : undefined} />
   const resultPanel = <div data-guide="query-result" className="flex h-full min-h-0 flex-col"><div className="flex h-9 shrink-0 items-center border-b border-border bg-card px-3"><span className="text-xs font-medium">Результат</span><Button data-guide="hide-result" variant="ghost" size="icon" className="ml-auto size-7" onClick={() => setResultVisible(false)} aria-label="Скрыть результат" title="Скрыть результат"><EyeOff size={14} /></Button></div><div className="min-h-0 flex-1"><ResultTable result={result} error={error} running={running} /></div></div>
@@ -273,31 +294,30 @@ export function WorkspacePage({ id }: { id: string }) {
   const horizontalSeparator = <Separator key="horizontal-separator" className="w-1 cursor-col-resize bg-border transition-colors hover:bg-primary" />
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-background text-foreground">
+    <div className="flex h-full min-h-0 flex-col bg-background text-foreground" style={{ paddingBottom: mobile && guideOpen ? guideCardHeight + 64 : undefined }}>
       <header className="flex min-h-14 flex-wrap items-center gap-2 border-b border-border bg-card px-3 py-2">
         <h1 className="sr-only">{workspace.name}</h1>
         <Button variant="ghost" size="icon" onClick={() => { location.hash = '/' }} aria-label="На главную"><ArrowLeft size={18} /></Button>
         <input value={workspace.name} onChange={(event) => setWorkspace({ ...workspace, name: event.target.value })} className="min-w-0 max-w-56 flex-1 rounded-md bg-transparent px-1 text-sm font-semibold outline-none focus:bg-accent" aria-label="Название рабочего пространства" />
 
         <div className="ml-auto flex items-center gap-1">
-          <Button data-guide="queries" variant="ghost" size="sm" onClick={() => setSidebar(!sidebar)}><History size={15} /><span className="hidden lg:inline">Запросы</span></Button>
+          <Button data-guide="queries" variant="ghost" size="sm" className="max-md:size-10 max-md:p-0" onClick={() => setSidebar(!sidebar)} aria-label="Запросы"><History size={15} /><span className="hidden lg:inline">Запросы</span></Button>
           <div data-guide="workspace-actions" className="flex items-center gap-1 rounded-lg">
-          <Button data-guide="scenario" variant="ghost" size="sm" className="hidden md:inline-flex" onClick={() => setScenarioOpen(true)}><Settings2 size={15} /><span className="hidden lg:inline">Сценарий</span></Button>
+          {!learnMode && <Button data-guide="scenario" variant="ghost" size="sm" className="hidden md:inline-flex" onClick={() => setScenarioOpen(true)}><Settings2 size={15} /><span className="hidden lg:inline">Сценарий</span></Button>}
           <Button data-guide="help" variant="ghost" size="icon" onClick={() => setGuideOpen(true)} aria-label="Гайд по интерфейсу" title="Гайд по интерфейсу"><CircleHelp size={16} /></Button>
           <Button data-guide="share" variant="ghost" size="icon" className="hidden md:inline-flex" onClick={() => void share()} aria-label="Поделиться сценарием"><Link2 size={16} /></Button>
           <Button data-guide="export" variant="ghost" size="icon" className="hidden md:inline-flex" onClick={() => void exportBackup()} aria-label="Экспорт резервной копии"><Download size={16} /></Button>
           <Button data-guide="theme" variant="ghost" size="icon" className="hidden md:inline-flex" onClick={() => change(dark ? 'light' : 'dark')} aria-label={`Тема: ${theme}`}>{dark ? <Sun size={16} /> : <Moon size={16} />}</Button>
           </div>
           <details className="relative md:hidden">
-            <summary className="grid size-9 cursor-pointer list-none place-items-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground" aria-label="Дополнительные действия"><MoreHorizontal size={17} /></summary>
+            <summary className="grid size-9 cursor-pointer list-none place-items-center rounded-lg text-muted-foreground max-md:size-10 hover:bg-accent hover:text-foreground" aria-label="Дополнительные действия"><MoreHorizontal size={17} /></summary>
             <div className="absolute right-0 top-10 z-50 w-56 rounded-xl border border-border bg-card p-2 shadow-xl">
-              <Button variant="ghost" size="sm" className="w-full justify-start" onClick={(event) => { setScenarioOpen(true); event.currentTarget.closest('details')?.removeAttribute('open') }}><Settings2 size={15} />Сценарий</Button>
+              {!learnMode && <Button variant="ghost" size="sm" className="w-full justify-start" onClick={(event) => { setScenarioOpen(true); event.currentTarget.closest('details')?.removeAttribute('open') }}><Settings2 size={15} />Сценарий</Button>}
               <Button variant="ghost" size="sm" className="w-full justify-start" onClick={(event) => { void share(); event.currentTarget.closest('details')?.removeAttribute('open') }}><Link2 size={15} />Поделиться сценарием</Button>
               <Button variant="ghost" size="sm" className="w-full justify-start" onClick={(event) => { void exportBackup(); event.currentTarget.closest('details')?.removeAttribute('open') }}><Download size={15} />Экспорт резервной копии</Button>
               <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => change(dark ? 'light' : 'dark')}><Moon size={15} />Переключить тему</Button>
             </div>
           </details>
-          <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setMobileTab('notes')} aria-label="Открыть задания"><ChevronDown size={16} /></Button>
         </div>
       </header>
       <div className="flex min-h-0 flex-1">
@@ -311,16 +331,20 @@ export function WorkspacePage({ id }: { id: string }) {
             {!panelsSwapped && desktopSqlPanel}
           </Group>
         </main> : <main className="min-w-0 flex-1">
-          <div data-guide="mobile-tabs" className="flex h-10 items-center gap-1 border-b border-border px-2"><Button variant={mobileTab === 'schema' ? 'secondary' : 'ghost'} size="sm" onClick={() => setMobileTab('schema')}>Схема</Button><Button variant={mobileTab === 'sql' ? 'secondary' : 'ghost'} size="sm" onClick={() => setMobileTab('sql')}>SQL</Button><Button variant={mobileTab === 'notes' ? 'secondary' : 'ghost'} size="sm" onClick={() => setMobileTab('notes')}>Задания</Button></div>
-          <div className="h-[calc(100%-2.5rem)]">{mobileTab === 'schema' ? schemaPanel : mobileTab === 'sql' ? <div className="flex h-full flex-col"><div className="h-3/5 min-h-56">{editorPanel}</div><div className="min-h-0 flex-1 border-t border-border"><div data-guide="query-result" className="h-full"><ResultTable result={result} error={error} running={running} /></div></div></div> : <NotesPanel notes={workspace.notes} onChange={changeNotes} tasks={workspace.scenario.tasks ?? []} onTasksChange={changeTasks} onCheckTask={checkCurrentTask} currentSql={workspace.draft} storageKey={`sql-lab-task-results:${id}`} width={notesWidth} onWidthChange={changeNotesWidth} collapsed={false} initialTab="tasks" onToggle={() => setMobileTab('sql')} />}</div>
+          <div data-guide="mobile-tabs" className="flex h-12 items-center gap-1 border-b border-border px-2"><Button className="h-10 flex-1 px-2" variant={mobileTab === 'sql' ? 'secondary' : 'ghost'} size="sm" onClick={() => setMobileTab('sql')}>SQL</Button><Button className="h-10 flex-1 px-2" variant={mobileTab === 'schema' ? 'secondary' : 'ghost'} size="sm" onClick={() => setMobileTab('schema')}>Схема</Button><Button className="h-10 flex-1 px-2" variant={mobileTab === 'materials' ? 'secondary' : 'ghost'} size="sm" onClick={() => setMobileTab('materials')}>Материалы</Button><Button className="h-10 flex-1 px-2" variant={mobileTab === 'tasks' ? 'secondary' : 'ghost'} size="sm" onClick={() => setMobileTab('tasks')}>Задания</Button></div>
+          <div className="h-[calc(100%-3rem)]">
+            <div className={mobileTab === 'schema' ? 'h-full' : 'hidden'}>{schemaPanel}</div>
+            <div className={mobileTab === 'sql' ? 'h-full' : 'hidden'}><div className="flex h-full flex-col"><div className="h-3/5 min-h-56">{editorPanel}</div><div className="min-h-0 flex-1 border-t border-border"><div data-guide="query-result" className="h-full"><ResultTable result={result} error={error} running={running} /></div></div></div></div>
+            <div className={mobileTab === 'materials' || mobileTab === 'tasks' ? 'h-full' : 'hidden'}><NotesPanel notes={workspace.notes} onChange={changeNotes} tasks={workspace.scenario.tasks ?? []} onTasksChange={changeTasks} onCheckTask={checkCurrentTask} currentSql={workspace.draft} storageKey={`sql-lab-task-results:${id}`} learnMode={learnMode} width={notesWidth} onWidthChange={changeNotesWidth} collapsed={false} activeTab={mobileTab === 'tasks' ? 'tasks' : 'notes'} onToggle={() => setMobileTab('sql')} /></div>
+          </div>
         </main>}
-        <div className="hidden shrink-0 md:block"><NotesPanel notes={workspace.notes} onChange={changeNotes} tasks={workspace.scenario.tasks ?? []} onTasksChange={changeTasks} onCheckTask={checkCurrentTask} currentSql={workspace.draft} storageKey={`sql-lab-task-results:${id}`} width={notesWidth} onWidthChange={changeNotesWidth} collapsed={notesCollapsed} onToggle={() => setNotesCollapsed(!notesCollapsed)} /></div>
+        <div className="hidden shrink-0 md:block"><NotesPanel notes={workspace.notes} onChange={changeNotes} tasks={workspace.scenario.tasks ?? []} onTasksChange={changeTasks} onCheckTask={checkCurrentTask} currentSql={workspace.draft} storageKey={`sql-lab-task-results:${id}`} learnMode={learnMode} width={notesWidth} onWidthChange={changeNotesWidth} collapsed={notesCollapsed} onToggle={() => setNotesCollapsed(!notesCollapsed)} /></div>
       </div>
       <DataDrawer workspaceId={id} tableName={tableName} table={schema.tables.find((table) => table.name === tableName)} schema={schema} adapter={adapter} open={tableName !== null} onOpenChange={(open) => { if (!open) setTableName(null) }} onChanged={() => void refreshSchema()} />
-      {scenarioOpen && <ScenarioEditor open={scenarioOpen} onOpenChange={setScenarioOpen} scenario={{ ...workspace.scenario, notes: workspace.notes }} schema={schema} onApply={applyScenario} onCaptureData={captureData} />}
+      {scenarioOpen && !learnMode && <ScenarioEditor open={scenarioOpen} onOpenChange={setScenarioOpen} scenario={{ ...workspace.scenario, notes: workspace.notes }} schema={schema} onApply={applyScenario} onCaptureData={captureData} />}
       <Dialog open={saveOpen} onOpenChange={setSaveOpen}><DialogContent title="Сохранить запрос" description="Название поможет быстро найти его в этом рабочем пространстве."><form onSubmit={(event) => { event.preventDefault(); void saveQuery() }}><Input autoFocus value={queryName} onChange={(event) => setQueryName(event.target.value)} placeholder="Например: доход по месяцам" /><div className="mt-4 flex justify-end gap-2"><Button variant="ghost" onClick={() => setSaveOpen(false)}>Отмена</Button><Button type="submit" disabled={!queryName.trim()}><Save size={14} />Сохранить</Button></div></form></DialogContent></Dialog>
       <Dialog open={Boolean(shareUrl)} onOpenChange={(open) => { if (!open) setShareUrl('') }}><DialogContent title="Ссылка на независимую копию" description="Схема, текущие данные, материалы, задания и стартовые запросы включены. Личная история остаётся в вашем браузере."><TextareaShare value={shareUrl} /><div className="mt-4 flex justify-end"><Button onClick={async () => { await navigator.clipboard.writeText(shareUrl); setCopied(true) }}>{copied ? <Check size={15} /> : <Plus size={15} />}{copied ? 'Скопировано' : 'Копировать ссылку'}</Button></div></DialogContent></Dialog>
-      {guideOpen && <InterfaceGuide onClose={closeGuide} />}
+      {guideOpen && <InterfaceGuide onClose={closeGuide} mobile={mobile} onStepChange={changeGuideTab} onCardResize={changeGuideCardHeight} />}
       {toast && <div role="status" className="fixed bottom-4 left-1/2 z-[70] max-w-lg -translate-x-1/2 rounded-lg border border-border bg-card px-4 py-2 text-sm shadow-xl">{toast}</div>}
     </div>
   )

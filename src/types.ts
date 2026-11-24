@@ -79,8 +79,11 @@ export type SqlTask = {
   }
 }
 
+export type WorkspaceMode = 'learn' | 'edit'
+
 export type ScenarioDefinition = {
   formatVersion: 1
+  mode?: WorkspaceMode
   name: string
   description: string
   basePreset: { id: string; version: number } | null
