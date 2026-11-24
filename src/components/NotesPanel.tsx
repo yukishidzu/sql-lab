@@ -8,24 +8,27 @@ import { TaskPanel } from './TaskPanel'
 import { Button } from './ui/button'
 import { Textarea } from './ui/input'
 
-export function NotesPanel({ notes, onChange, tasks, onTasksChange, onCheckTask, width, onWidthChange, collapsed, onToggle }: {
+export function NotesPanel({ notes, onChange, tasks, onTasksChange, onCheckTask, currentSql, storageKey, width, onWidthChange, collapsed, onToggle, initialTab = 'notes' }: {
   notes: string
   onChange: (notes: string) => void
   tasks: SqlTask[]
   onTasksChange: (tasks: SqlTask[]) => void
   onCheckTask: (task: SqlTask) => Promise<TaskCheckResult>
+  currentSql: string
+  storageKey: string
   width: number
   onWidthChange: (width: number) => void
   collapsed: boolean
   onToggle: () => void
+  initialTab?: 'notes' | 'tasks'
 }) {
   const [editing, setEditing] = useState(false)
-  const [tab, setTab] = useState<'notes' | 'tasks'>('notes')
+  const [tab, setTab] = useState<'notes' | 'tasks'>(initialTab)
   const resizing = useRef<{ startX: number; startWidth: number } | null>(null)
   const resizeTo = (next: number) => onWidthChange(Math.round(Math.max(280, Math.min(640, window.innerWidth * 0.55, next))))
-  if (collapsed) return <aside data-guide="notes" aria-label="Заметки и задания" className="flex h-full w-10 shrink-0 flex-col items-center border-l border-border bg-card py-2"><Button variant="ghost" size="icon" onClick={onToggle} aria-label="Открыть заметки" title="Открыть заметки"><ChevronLeft size={17} /></Button><span className="mt-4 [writing-mode:vertical-rl] text-xs text-muted-foreground">Материалы и задания</span></aside>
+  if (collapsed) return <aside data-guide="notes" aria-label="Материалы и задания" className="flex h-full w-10 shrink-0 flex-col items-center border-l border-border bg-card py-2"><Button variant="ghost" size="icon" onClick={onToggle} aria-label="Открыть материалы и задания" title="Открыть материалы и задания"><ChevronLeft size={17} /></Button><span className="mt-4 [writing-mode:vertical-rl] text-xs text-muted-foreground">Материалы и задания</span></aside>
   return (
-    <aside data-guide="notes" aria-label="Заметки и задания" className="relative flex h-full min-h-0 w-full shrink-0 flex-col border-l border-border bg-card md:w-[var(--notes-width)] md:max-w-[55vw]" style={{ '--notes-width': `${width}px` } as CSSProperties}>
+    <aside data-guide="notes" aria-label="Материалы и задания" className="relative flex h-full min-h-0 w-full shrink-0 flex-col border-l border-border bg-card md:w-[var(--notes-width)] md:max-w-[55vw]" style={{ '--notes-width': `${width}px` } as CSSProperties}>
       <div role="separator" aria-orientation="vertical" aria-label="Изменить ширину панели заданий" aria-valuemin={280} aria-valuemax={640} aria-valuenow={width} tabIndex={0} className="absolute bottom-0 left-[-2px] top-0 z-10 hidden w-1 cursor-col-resize bg-border transition-colors hover:bg-primary md:block"
         onPointerDown={(event) => { resizing.current = { startX: event.clientX, startWidth: width }; event.currentTarget.setPointerCapture(event.pointerId) }}
         onPointerMove={(event) => { if (resizing.current) resizeTo(resizing.current.startWidth + resizing.current.startX - event.clientX) }}
@@ -37,7 +40,7 @@ export function NotesPanel({ notes, onChange, tasks, onTasksChange, onCheckTask,
         <div className="flex min-w-0 gap-1"><Button variant={tab === 'notes' ? 'secondary' : 'ghost'} size="sm" onClick={() => setTab('notes')}>Материалы</Button><Button variant={tab === 'tasks' ? 'secondary' : 'ghost'} size="sm" onClick={() => setTab('tasks')}>Задания</Button></div>
         <div className="ml-auto flex shrink-0">{tab === 'notes' && <Button variant="ghost" size="icon" className="size-8" onClick={() => setEditing(!editing)} aria-label={editing ? 'Просмотр Markdown' : 'Редактировать заметки'} title={editing ? 'Просмотр' : 'Редактировать'}>{editing ? <Eye size={15} /> : <Edit3 size={15} />}</Button>}<Button variant="ghost" size="icon" className="size-8" onClick={() => { setEditing(false); onToggle() }} aria-label="Свернуть заметки" title="Свернуть"><ChevronRight size={15} /></Button></div>
       </div>
-      {tab === 'tasks' ? <TaskPanel tasks={tasks} onChange={onTasksChange} onCheck={onCheckTask} /> : editing ? <Textarea value={notes} onChange={(event) => onChange(event.target.value)} spellCheck={false} className="min-h-0 flex-1 resize-none overflow-auto rounded-none border-0 px-4 py-3 font-mono text-sm leading-relaxed focus:ring-0" aria-label="Markdown-заметки" /> : <div className="markdown min-h-0 flex-1 overflow-auto px-4 py-3 text-sm"><ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: ({ ...props }) => <a {...props} target="_blank" rel="noreferrer" /> }}>{notes}</ReactMarkdown></div>}
+      {tab === 'tasks' ? <TaskPanel tasks={tasks} onChange={onTasksChange} onCheck={onCheckTask} currentSql={currentSql} storageKey={storageKey} /> : editing ? <Textarea value={notes} onChange={(event) => onChange(event.target.value)} spellCheck={false} className="min-h-0 flex-1 resize-none overflow-auto rounded-none border-0 px-4 py-3 font-mono text-sm leading-relaxed focus:ring-0" aria-label="Markdown-заметки" /> : <div className="markdown min-h-0 flex-1 overflow-auto px-4 py-3 text-sm focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring" tabIndex={0} aria-label="Материалы по базе данных"><ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: ({ ...props }) => <a {...props} target="_blank" rel="noreferrer" /> }}>{notes}</ReactMarkdown></div>}
     </aside>
   )
 }

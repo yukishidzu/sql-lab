@@ -34,4 +34,14 @@ describe('генератор синтетических данных', () => {
     const row = await generateValidRow(table, relationships, [{ ticket_id: 1, flight_id: 1 }], async (name) => name === 'tickets' ? [{ id: 1 }, { id: 2 }] : [{ id: 1 }])
     expect(row).toEqual({ ticket_id: 2, flight_id: 1 })
   })
+
+  it('сохраняет хронологию планового и фактического рейса', async () => {
+    const flights: DbTable = {
+      name: 'flights',
+      columns: ['scheduled_departure', 'scheduled_arrival', 'actual_departure', 'actual_arrival'].map((name) => ({ name, dataType: 'timestamp without time zone', nullable: true, primaryKey: false, foreignKey: false })),
+    }
+    const row = await generateValidRow(flights, [], [], async () => [])
+    expect(String(row.scheduled_arrival) > String(row.scheduled_departure)).toBe(true)
+    expect(String(row.actual_arrival) > String(row.actual_departure)).toBe(true)
+  })
 })

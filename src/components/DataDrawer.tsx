@@ -23,7 +23,12 @@ export function typedValue(value: string, type: string): SqlValue {
   if (value === '') return ''
   if (type === 'bigint') return value
   if (type.includes('integer') || type === 'smallint') return Number(value)
-  if (type === 'boolean') return value.toLowerCase() === 'true' || value === 't' || value === '1'
+  if (type === 'boolean') {
+    const normalized = value.toLowerCase()
+    if (['true', 't', '1'].includes(normalized)) return true
+    if (['false', 'f', '0'].includes(normalized)) return false
+    throw new Error('Для boolean используйте true/false, t/f или 1/0')
+  }
   return value
 }
 
@@ -132,6 +137,7 @@ export function DataDrawer({ workspaceId, tableName, table, schema, adapter, ope
           <div className="mt-5 flex justify-end gap-2"><Button variant="ghost" onClick={cancelEdit}>Отмена</Button><Button onClick={() => void save()}>Сохранить строку</Button></div>
         </div> : <>
           <div className="mb-3 flex flex-wrap gap-2"><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Поиск по текущим строкам" className="max-w-xs" /><Button variant="outline" size="sm" onClick={() => startEdit(null)}><Plus size={14} />Строка</Button><Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}><Upload size={14} />CSV / JSON</Button><input ref={fileRef} type="file" accept=".csv,.json" className="hidden" onChange={async (event) => { const file = event.target.files?.[0]; if (!file) return; try { const imported = parseDataImport(await file.text(), file.name.split('.').pop()?.toLowerCase() ?? 'csv'); setImportPreview(imported.slice(0, 500)); setError(imported.length > 500 ? 'Импорт ограничен первыми 500 строками' : '') } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)) } event.target.value = '' }} /><Button variant="ghost" size="icon" className="ml-auto" onClick={() => void load()} aria-label="Обновить"><RefreshCw size={15} /></Button></div>
+          {result?.rowCount === 200 && <div role="status" className="mb-3 rounded-lg bg-secondary p-2 text-xs text-muted-foreground">Показаны первые 200 строк. Для точного поиска используйте SQL-запрос.</div>}
           {importPreview.length > 0 && <div className="mb-3 flex items-center gap-3 rounded-lg bg-secondary p-3 text-xs"><span>Готово к импорту: {importPreview.length} строк</span><Button size="sm" onClick={() => void importRows()}>Импортировать</Button><Button variant="ghost" size="sm" onClick={() => setImportPreview([])}>Отмена</Button></div>}
           <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-border"><table className="w-full border-collapse font-mono text-xs"><thead className="sticky top-0 bg-secondary"><tr>{table?.columns.map((column) => <th key={column.name} className="px-3 py-2 text-left">{column.name}</th>)}<th className="w-16" /></tr></thead><tbody>{rows.map((row, index) => <tr key={index} className="border-t border-border/60">{table?.columns.map((column) => <td key={column.name} className="max-w-48 truncate px-3 py-2" title={displayValue(row[column.name])}><button className="cursor-pointer text-left" onClick={() => startEdit(row)}>{displayValue(row[column.name])}</button></td>)}<td><Button variant="ghost" size="icon" className="size-7" aria-label="Удалить строку" onClick={async () => { if (!adapter || !tableName || !confirm('Удалить эту строку?')) return; try { await adapter.deleteRow(tableName, row); await load(); onChanged() } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)) } }}><Trash2 size={13} /></Button></td></tr>)}</tbody></table>{!rows.length && <div className="p-8 text-center text-sm text-muted-foreground">Строк не найдено</div>}</div>
         </>}

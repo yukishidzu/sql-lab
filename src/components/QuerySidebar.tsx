@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Clock3, Code2, History, Pencil, Trash2 } from 'lucide-react'
 import type { QueryRun, SavedQuery } from '../types'
 import { displayValue, formatDuration } from '../lib/utils'
@@ -15,12 +15,30 @@ export function QuerySidebar({ queries, runs, onOpen, onRename, onDelete, onClos
   const [tab, setTab] = useState<'saved' | 'history'>('saved')
   const [editing, setEditing] = useState<string | null>(null)
   const [name, setName] = useState('')
+  const panelRef = useRef<HTMLElement>(null)
+  const closeRef = useRef(onClose)
+  closeRef.current = onClose
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null
+    panelRef.current?.querySelector<HTMLButtonElement>('button')?.focus()
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeRef.current()
+      if (event.key !== 'Tab' || !panelRef.current) return
+      const focusable = [...panelRef.current.querySelectorAll<HTMLElement>('button:not(:disabled), input, [tabindex="0"]')]
+      const first = focusable[0]
+      const last = focusable.at(-1)
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus() }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => { document.removeEventListener('keydown', onKeyDown); previous?.focus() }
+  }, [])
   const finishRename = (query: SavedQuery) => {
     if (name.trim() && name.trim() !== query.name) onRename(query.id, name.trim())
     setEditing(null)
   }
   return (
-    <aside className="flex h-full min-h-0 flex-col bg-card">
+    <aside ref={panelRef} aria-label="Запросы и история" className="flex h-full min-h-0 flex-col bg-card">
       <div className="flex h-11 items-center gap-1 border-b border-border px-2">
         <Button variant={tab === 'saved' ? 'secondary' : 'ghost'} size="sm" onClick={() => setTab('saved')}><Code2 size={14} />Запросы</Button>
         <Button variant={tab === 'history' ? 'secondary' : 'ghost'} size="sm" onClick={() => setTab('history')}><History size={14} />История</Button>

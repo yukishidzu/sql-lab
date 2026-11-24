@@ -1,5 +1,5 @@
 import type { Preset } from '../types'
-import { tasksFromNotes } from '../lib/tasks'
+import { defineTasks } from '../lib/tasks'
 import { shopSolutions } from './taskSolutions'
 
 const schemaSql = `
@@ -38,7 +38,7 @@ CREATE TABLE order_items (
 );
 `
 
-const notes = `## Задания: интернет-магазин
+const notes = `## Материалы: интернет-магазин
 
 В базе представлен небольшой магазин электроники. Клиенты оформляют заказы, каждый заказ содержит одну или несколько позиций, а товары относятся к категориям. Цена в позиции сохраняется на момент покупки и может отличаться от текущей цены товара.
 
@@ -52,64 +52,27 @@ const notes = `## Задания: интернет-магазин
 
 Связи устроены так: категория содержит много товаров, клиент оформляет много заказов, заказ включает много позиций, а каждая позиция ссылается на один товар. Есть клиенты без заказов, товары без продаж и пустая категория — они нужны для заданий с внешними соединениями.
 
-Работайте с исторической ценой из позиций заказа там, где речь идёт о выручке. Во всех заданиях добавьте понятную сортировку результата.
-
-### 1. Дорогие активные товары
-Выведите пять самых дорогих активных товаров с ценой строго выше 3000. Нужны название, цена и остаток; сортировка — по убыванию цены.
-
-*Темы: фильтрация, сортировка, ограничение числа строк.*
-
-### 2. Новые клиенты двух городов
-Найдите клиентов из Москвы и Санкт-Петербурга, зарегистрированных с 1 января по 30 июня 2026 года включительно. Выведите имя, email, город и дату регистрации.
-
-*Темы: список значений и диапазон дат.*
-
-### 3. Статистика по статусам
-Для каждого статуса заказа посчитайте количество заказов, дату и время первого и последнего заказа. Отсортируйте строки по названию статуса.
-
-*Темы: группировка и агрегатные функции.*
-
-### 4. Категории товаров Pro
-Выведите уникальные названия категорий, в которых есть товары со словом «pro» в названии без учёта регистра и с остатком больше нуля. Каждая категория должна встречаться один раз.
-
-*Темы: соединение таблиц, поиск без учёта регистра, устранение дублей.*
-
-### 5. Клиенты без заказов
-Найдите клиентов, которые ещё не оформили ни одного заказа. Выведите id, имя, email и город; вместо неизвестного города покажите «Не указан».
-
-*Темы: внешнее соединение, проверка отсутствия строки, замена NULL.*
-
-### 6. Крупные доставленные покупки
-Найдите клиентов, сумма всех их доставленных заказов которых превышает 15000. Считайте сумму по цене на момент покупки и количеству в позициях. Выведите id, имя и сумму с двумя знаками после запятой.
-
-*Темы: цепочка соединений, группировка, фильтрация групп.*
-
-### 7. Цена выше средней
-Выведите активные товары, текущая цена которых строго выше средней цены всех товаров каталога. Покажите название и цену, отсортируйте по убыванию цены.
-
-*Тема: скалярный подзапрос.*
-
-### 8. Товары без продаж
-Найдите товары, которые ни разу не встречались в позициях заказов. Выведите id, название и цену.
-
-*Тема: проверка отсутствия связанных строк.*
-
-### 9. Продажи по всем категориям
-Для каждой категории, включая пустые, посчитайте количество проданных штук и выручку только по доставленным заказам. Вместо NULL выведите 0. Не потеряйте категории без доставленных продаж и не умножьте строки из-за соединений.
-
-*Темы: внешние соединения, условная агрегация, замена NULL.*
-
-### 10. Разнообразные крупные покупки
-Найдите клиентов, которые в доставленных заказах купили товары минимум из двух разных категорий, а их общая сумма покупок выше среднего чека одного доставленного заказа. Выведите id, имя, число категорий и сумму покупок.
-
-*Темы: несколько соединений, подсчёт уникальных значений, подзапрос или общее табличное выражение.*
+При расчёте выручки важна цена из позиции заказа: она фиксирует условия покупки, даже если позже цена в каталоге изменилась. Такой подход используется в реальных торговых системах.
 `
 
+const shopTasks: [string, string][] = [
+  ['Активные дорогие товары', 'Выведите название, цену и остаток активных товаров с ценой выше 3000. Отсортируйте по убыванию цены.'],
+  ['Клиенты двух городов', 'Найдите клиентов из Москвы и Санкт-Петербурга, зарегистрированных с 1 января по 30 июня 2026 года включительно. Выведите имя, email, город и дату регистрации.'],
+  ['Пять самых дорогих товаров', 'Выведите название и цену пяти самых дорогих активных товаров. Сначала самый дорогой.'],
+  ['Категории без повторов', 'Выведите уникальные названия категорий, где есть товар со словом «pro» в названии без учёта регистра и с остатком больше нуля. Отсортируйте по названию категории.'],
+  ['Каталог с категориями', 'Для каждого товара выведите его название, название категории, цену и остаток. Отсортируйте по категории и названию товара.'],
+  ['Состав доставленных заказов', 'Выведите id заказа, имя клиента, название товара, количество и сумму позиции по цене на момент покупки. Учитывайте только доставленные заказы. Отсортируйте по id заказа и названию товара.'],
+  ['Статистика по статусам', 'Для каждого статуса заказа посчитайте число заказов, время первого и последнего заказа. Отсортируйте по статусу.'],
+  ['Клиенты с крупными покупками', 'Найдите клиентов с общей суммой доставленных заказов выше 15000. Выведите id, имя и сумму по историческим ценам позиций. Отсортируйте по убыванию суммы.'],
+  ['Клиенты без заказов', 'Выведите id, имя, email и город клиентов без заказов. Вместо неизвестного города покажите «Не указан». Отсортируйте по id.'],
+  ['Продажи по всем категориям', 'Для каждой категории, включая пустые, посчитайте проданные штуки и выручку по доставленным заказам. Если продаж нет, выведите 0. Отсортируйте по названию категории.'],
+]
+
 export const shopPreset: Preset = {
-  id: 'shop', version: 2, name: 'Интернет-магазин', difficulty: 'Базовый', accent: '#34a67c',
+  id: 'shop', version: 3, name: 'Интернет-магазин', difficulty: 'Базовый', accent: '#34a67c',
   description: 'Каталог, клиенты и заказы. Базовые выборки, соединения и агрегатные функции.',
   scenario: {
-    formatVersion: 1, name: 'Интернет-магазин', description: 'Учебная база интернет-магазина', basePreset: { id: 'shop', version: 2 }, schemaSql, notes, tasks: tasksFromNotes(notes, shopSolutions),
+    formatVersion: 1, name: 'Интернет-магазин', description: 'Учебная база интернет-магазина', basePreset: { id: 'shop', version: 3 }, schemaSql, notes, tasks: defineTasks(shopTasks, shopSolutions, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]),
     starterQueries: [
       { name: 'Каталог товаров', sql: `SELECT p.id, p.name AS product, c.name AS category, p.price, p.stock_qty, p.is_active\nFROM products p\nJOIN categories c ON c.id = p.category_id\nORDER BY c.name, p.name;` },
       { name: 'Состав доставленных заказов', sql: `SELECT o.id AS order_id, cu.full_name AS customer, p.name AS product, oi.quantity, oi.unit_price,\n       oi.quantity * oi.unit_price AS line_total\nFROM orders o\nJOIN customers cu ON cu.id = o.customer_id\nJOIN order_items oi ON oi.order_id = o.id\nJOIN products p ON p.id = oi.product_id\nWHERE o.status = 'delivered'\nORDER BY o.id, p.name;` },
@@ -120,22 +83,22 @@ export const shopPreset: Preset = {
         { id: 4, name: 'Аксессуары' }, { id: 5, name: 'Распродажа' },
       ],
       products: [
-        { id: 1, category_id: 1, name: 'Laptop Pro 15', price: 120000, stock_qty: 5, is_active: true },
-        { id: 2, category_id: 1, name: 'Laptop PRO Air', price: 95000, stock_qty: 3, is_active: true },
-        { id: 3, category_id: 1, name: 'OfficeBook 14', price: 45000, stock_qty: 8, is_active: true },
-        { id: 4, category_id: 1, name: 'GameBook X', price: 85000, stock_qty: 4, is_active: true },
-        { id: 5, category_id: 2, name: 'Smart pro X', price: 65000, stock_qty: 6, is_active: true },
-        { id: 6, category_id: 2, name: 'Smart Lite', price: 22000, stock_qty: 10, is_active: true },
-        { id: 7, category_id: 2, name: 'Smart Pro Mini', price: 55000, stock_qty: 0, is_active: true },
-        { id: 8, category_id: 2, name: 'Phone Basic', price: 12000, stock_qty: 12, is_active: true },
-        { id: 9, category_id: 3, name: 'Wireless Headphones', price: 8500, stock_qty: 15, is_active: true },
-        { id: 10, category_id: 3, name: 'Studio Headset', price: 14000, stock_qty: 7, is_active: true },
-        { id: 11, category_id: 3, name: 'Speaker Mini', price: 6000, stock_qty: 9, is_active: true },
-        { id: 12, category_id: 4, name: 'USB-C Hub', price: 4500, stock_qty: 20, is_active: true },
-        { id: 13, category_id: 4, name: 'Laptop Stand', price: 3500, stock_qty: 11, is_active: true },
-        { id: 14, category_id: 4, name: 'Mechanical Keyboard', price: 7500, stock_qty: 5, is_active: true },
-        { id: 15, category_id: 1, name: 'Old Pro Workstation', price: 40000, stock_qty: 2, is_active: false },
-        { id: 16, category_id: 4, name: 'Legacy Mouse', price: 1500, stock_qty: 3, is_active: false },
+        { id: 1, category_id: 1, name: 'Apple MacBook Pro 14', price: 120000, stock_qty: 5, is_active: true },
+        { id: 2, category_id: 1, name: 'Apple MacBook PRO 13', price: 95000, stock_qty: 3, is_active: true },
+        { id: 3, category_id: 1, name: 'Lenovo ThinkPad E14', price: 45000, stock_qty: 8, is_active: true },
+        { id: 4, category_id: 1, name: 'ASUS ROG Strix G16', price: 85000, stock_qty: 4, is_active: true },
+        { id: 5, category_id: 2, name: 'Apple iPhone 17 Pro', price: 65000, stock_qty: 6, is_active: true },
+        { id: 6, category_id: 2, name: 'Google Pixel 10', price: 22000, stock_qty: 10, is_active: true },
+        { id: 7, category_id: 2, name: 'Xiaomi 15 Pro', price: 55000, stock_qty: 0, is_active: true },
+        { id: 8, category_id: 2, name: 'Samsung Galaxy A56', price: 12000, stock_qty: 12, is_active: true },
+        { id: 9, category_id: 3, name: 'Sony WH-1000XM5', price: 8500, stock_qty: 15, is_active: true },
+        { id: 10, category_id: 3, name: 'Sennheiser HD 560S', price: 14000, stock_qty: 7, is_active: true },
+        { id: 11, category_id: 3, name: 'JBL Charge 6', price: 6000, stock_qty: 9, is_active: true },
+        { id: 12, category_id: 4, name: 'Ugreen Revodok 109', price: 4500, stock_qty: 20, is_active: true },
+        { id: 13, category_id: 4, name: 'Twelve South Curve Flex', price: 3500, stock_qty: 11, is_active: true },
+        { id: 14, category_id: 4, name: 'Keychron K2', price: 7500, stock_qty: 5, is_active: true },
+        { id: 15, category_id: 1, name: 'Apple MacBook Pro 2019', price: 40000, stock_qty: 2, is_active: false },
+        { id: 16, category_id: 4, name: 'Logitech M185', price: 1500, stock_qty: 3, is_active: false },
       ],
       customers: [
         { id: 1, full_name: 'Алексей Смирнов', email: 'alexey@example.com', city: 'Москва', registered_at: '2025-11-10' },

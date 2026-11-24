@@ -31,6 +31,24 @@ describe('автопроверка заданий', () => {
     expect(compareTaskResults(actual, expected, { compareColumns: true, compareOrder: false, readOnly: true }).status).toBe('failed')
   })
 
+  it('сравнивает одинаковые числа разных SQL-типов по значению', () => {
+    const actual = result([{ value: '1.0' }], ['value'])
+    const expected = result([{ value: 1 }], ['value'])
+    actual.fields[0].dataTypeID = 1700
+    expected.fields[0].dataTypeID = 23
+    expect(compareTaskResults(actual, expected, { compareColumns: false, compareOrder: false, readOnly: true }).status).toBe('passed')
+  })
+
+  it('использует позиции значений при повторяющихся именах колонок', () => {
+    const actual = result([{ id: 2 }], ['id', 'id'])
+    actual.rows = [{ id: 2 }]
+    actual.rowValues = [[1, 2]]
+    const expected = result([{ id: 2 }], ['id', 'id'])
+    expected.rows = [{ id: 2 }]
+    expected.rowValues = [[1, 2]]
+    expect(compareTaskResults(actual, expected, { compareColumns: false, compareOrder: false, readOnly: true }).status).toBe('passed')
+  })
+
   it('сообщает о разном количестве строк', () => {
     const check = compareTaskResults(result([]), result([{ id: 1, value: 'a' }]), { compareColumns: false, compareOrder: false, readOnly: true })
     expect(check).toMatchObject({ status: 'failed' })

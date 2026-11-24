@@ -23,7 +23,7 @@ export function parseCsv(text: string): Record<string, SqlValue>[] {
   if (new Set(headers).size !== headers.length || headers.some((header) => !header)) throw new Error('Пустые или повторяющиеся заголовки CSV')
   return records.slice(1).filter((record) => record.some((value) => value !== '')).map((record) => {
     if (record.length !== headers.length) throw new Error('Разное число колонок в строках CSV')
-    return Object.fromEntries(headers.map((header, index) => [header, record[index] === '' ? null : record[index]]))
+    return Object.fromEntries(headers.map((header, index) => [header, record[index] === '\\N' ? null : record[index]]))
   })
 }
 

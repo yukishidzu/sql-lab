@@ -10,13 +10,27 @@ describe('учебные пресеты', () => {
     expect(presets.map((preset) => preset.difficulty)).toEqual(['Базовый', 'Средний', 'Продвинутый'])
     expect(presets.map((preset) => Object.keys(preset.scenario.data).length)).toEqual([5, 6, 7])
     for (const preset of presets) {
-      expect(preset.scenario.notes.match(/^###\s+\d+\./gm)).toHaveLength(10)
+      expect(preset.scenario.notes).toContain('## Материалы:')
+      expect(preset.scenario.notes).not.toMatch(/^###\s+\d+\./gm)
       expect(preset.scenario.tasks).toHaveLength(10)
       expect(preset.scenario.tasks?.every((task) => task.referenceQuery.trim().length > 0)).toBe(true)
       expect(preset.scenario.starterQueries).toHaveLength(2)
       expect(preset.scenario).not.toHaveProperty('expectedQuery')
       expect(preset.scenario.schemaSql).not.toMatch(/\b(NOW|VARCHAR|SERIAL|BIGINT|REAL|DOUBLE PRECISION)\b/i)
     }
+  })
+
+  it('требует сортировку только там, где она входит в условие', () => {
+    expect(byId.shop.scenario.tasks?.filter((task) => task.rules.compareOrder)).toHaveLength(10)
+    expect(byId.cinema.scenario.tasks?.filter((task) => task.rules.compareOrder)).toHaveLength(8)
+    expect(byId.airline.scenario.tasks?.filter((task) => task.rules.compareOrder)).toHaveLength(8)
+  })
+
+  it('использует оконные функции только в последней паре авиаперелётов', () => {
+    const windowPattern = /\b(OVER|ROW_NUMBER|RANK|DENSE_RANK|LAG|LEAD)\s*(?:\(|$)/i
+    for (const preset of [byId.shop, byId.cinema]) expect(preset.scenario.tasks?.every((task) => !windowPattern.test(task.referenceQuery))).toBe(true)
+    expect(byId.airline.scenario.tasks?.slice(0, 8).every((task) => !windowPattern.test(task.referenceQuery))).toBe(true)
+    expect(byId.airline.scenario.tasks?.slice(8).every((task) => windowPattern.test(task.referenceQuery))).toBe(true)
   })
 
   it('объявляет все суррогатные id как IDENTITY', () => {
@@ -39,8 +53,8 @@ describe('учебные пресеты', () => {
     expect(byId.airline.scenario.data.airports).toHaveLength(8)
     expect(byId.airline.scenario.data.flights).toHaveLength(15)
     expect(byId.airline.scenario.data.bookings).toHaveLength(14)
-    expect(byId.airline.scenario.data.tickets).toHaveLength(30)
-    expect(byId.airline.scenario.data.ticket_flights).toHaveLength(50)
+    expect(byId.airline.scenario.data.tickets).toHaveLength(29)
+    expect(byId.airline.scenario.data.ticket_flights).toHaveLength(49)
     expect(byId.airline.scenario.data.boarding_passes).toHaveLength(35)
   })
 })

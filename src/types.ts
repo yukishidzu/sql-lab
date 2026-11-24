@@ -8,6 +8,7 @@ export type QueryField = {
 export type QueryResult = {
   fields: QueryField[]
   rows: Record<string, SqlValue>[]
+  rowValues?: SqlValue[][]
   rowCount: number
   affectedRows?: number
   durationMs: number
@@ -24,6 +25,7 @@ export type DbColumn = {
 export type DbTable = {
   name: string
   columns: DbColumn[]
+  uniqueGroups?: string[][]
 }
 
 export type DbRelationship = {
@@ -114,9 +116,10 @@ export type Preset = {
 
 export type DatabaseAdapter = {
   executeOne(sql: string): Promise<QueryResult>
+  executeReadOnly(sql: string): Promise<QueryResult>
   executeScript(sql: string): Promise<void>
   introspect(): Promise<SchemaInfo>
-  readTable(table: string, limit?: number): Promise<QueryResult>
+  readTable(table: string, limit?: number | null): Promise<QueryResult>
   insertRow(table: string, row: Record<string, SqlValue>): Promise<void>
   importRows(table: string, rows: Record<string, SqlValue>[]): Promise<void>
   updateRow(table: string, row: Record<string, SqlValue>, original: Record<string, SqlValue>): Promise<void>

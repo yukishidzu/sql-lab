@@ -17,21 +17,32 @@ const emptyTask = (): SqlTask => ({
   rules: { ...defaultTaskRules },
 })
 
-export function TaskPanel({ tasks, onChange, onCheck }: {
+type StoredTaskResult = { result: TaskCheckResult; signature: string; completed: boolean }
+
+export function TaskPanel({ tasks, onChange, onCheck, currentSql, storageKey }: {
   tasks: SqlTask[]
   onChange: (tasks: SqlTask[]) => void
   onCheck: (task: SqlTask) => Promise<TaskCheckResult>
+  currentSql: string
+  storageKey: string
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(tasks[0]?.id ?? null)
   const [editingTask, setEditingTask] = useState<SqlTask | null>(null)
   const [checkingId, setCheckingId] = useState<string | null>(null)
-  const [results, setResults] = useState<Record<string, TaskCheckResult>>({})
+  const [results, setResults] = useState<Record<string, StoredTaskResult>>(() => {
+    try { return JSON.parse(localStorage.getItem(storageKey) ?? '{}') as Record<string, StoredTaskResult> } catch { return {} }
+  })
   const [formError, setFormError] = useState('')
 
   const check = async (task: SqlTask) => {
     setCheckingId(task.id)
+    const signature = JSON.stringify([currentSql, task.referenceQuery, task.rules])
     const result = await onCheck(task)
-    setResults((current) => ({ ...current, [task.id]: result }))
+    setResults((current) => {
+      const next = { ...current, [task.id]: { result, signature, completed: current[task.id]?.completed || result.status === 'passed' } }
+      try { localStorage.setItem(storageKey, JSON.stringify(next)) } catch {}
+      return next
+    })
     setCheckingId(null)
   }
   const save = () => {
@@ -42,11 +53,6 @@ export function TaskPanel({ tasks, onChange, onCheck }: {
     }
     const exists = tasks.some((task) => task.id === editingTask.id)
     onChange(exists ? tasks.map((task) => task.id === editingTask.id ? editingTask : task) : [...tasks, editingTask])
-    setResults((current) => {
-      const next = { ...current }
-      delete next[editingTask.id]
-      return next
-    })
     setSelectedId(editingTask.id)
     setEditingTask(null)
     setFormError('')
@@ -64,19 +70,22 @@ export function TaskPanel({ tasks, onChange, onCheck }: {
         {!tasks.length && <div className="px-3 py-8 text-center text-sm text-muted-foreground">Добавьте первое задание и эталонный запрос для его проверки.</div>}
         {tasks.map((task, index) => {
           const selected = selectedId === task.id
-          const result = results[task.id]
+          const stored = results[task.id]
+          const completed = Boolean(stored?.completed || stored?.result.status === 'passed')
+          const currentResult = stored?.signature === JSON.stringify([currentSql, task.referenceQuery, task.rules]) ? stored.result : undefined
+          const result = currentResult ?? (completed ? { status: 'passed' as const, message: 'Задание зачтено. Изменение текущего запроса не отменяет этот результат.' } : undefined)
           return <section key={task.id} className="mb-1 overflow-hidden rounded-lg border border-border/70">
             <div className="flex items-center bg-secondary/35">
               <button className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 px-2.5 py-2 text-left text-xs font-medium hover:bg-accent" onClick={() => setSelectedId(selected ? null : task.id)} aria-expanded={selected}>
                 {selected ? <ChevronDown size={14} className="shrink-0" /> : <ChevronRight size={14} className="shrink-0" />}
                 <span className="truncate">{index + 1}. {task.title}</span>
-                {result?.status === 'passed' && <CheckCircle2 size={14} className="ml-auto shrink-0 text-green-600" />}
+                {completed && <CheckCircle2 size={14} className="ml-auto shrink-0 text-green-600" />}
               </button>
               <Button variant="ghost" size="icon" className="mr-1 size-7" aria-label={`Редактировать задание ${index + 1}`} onClick={() => { setEditingTask(structuredClone(task)); setFormError('') }}><Edit3 size={13} /></Button>
             </div>
             {selected && <div className="border-t border-border/70 p-3">
               <div className="markdown text-xs"><ReactMarkdown remarkPlugins={[remarkGfm]}>{task.prompt}</ReactMarkdown></div>
-              <div className="mt-3 flex flex-wrap gap-1"><Badge>{task.rules.compareOrder ? 'Порядок важен' : 'Любой порядок'}</Badge><Badge>{task.rules.compareColumns ? 'Имена колонок' : 'Только значения'}</Badge></div>
+              <div className="mt-3 flex flex-wrap gap-1"><Badge>{task.rules.compareOrder ? 'Порядок важен' : 'Любой порядок'}</Badge><Badge>{task.rules.compareColumns ? 'Имена колонок' : 'Любые алиасы'}</Badge></div>
               <Button size="sm" className="mt-3 w-full" disabled={checkingId !== null} onClick={() => void check(task)}>
                 {checkingId === task.id ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}Проверить решение
               </Button>

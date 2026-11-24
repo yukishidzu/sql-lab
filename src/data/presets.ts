@@ -21,7 +21,7 @@ export function emptyScenario(): ScenarioDefinition {
     basePreset: null,
     schemaSql: '-- Создайте таблицы здесь или через кнопку «Новая таблица».\n',
     data: {},
-    notes: '## Заметки / Задания\n\nОпишите здесь задачу или добавьте полезные ссылки.',
+    notes: '## Материалы и задания\n\nОпишите здесь задачу или добавьте полезные ссылки.',
     tasks: [],
     starterQueries: [],
     layout: {},

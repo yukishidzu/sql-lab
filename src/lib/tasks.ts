@@ -11,6 +11,16 @@ export const defaultTaskRules: SqlTask['rules'] = {
   readOnly: true,
 }
 
+export function defineTasks(definitions: [title: string, prompt: string][], referenceQueries: string[], orderedTasks: number[] = []): SqlTask[] {
+  return definitions.map(([title, prompt], index) => ({
+    id: `task-${index + 1}`,
+    title,
+    prompt,
+    referenceQuery: referenceQueries[index] ?? '',
+    rules: { ...defaultTaskRules, compareOrder: orderedTasks.includes(index + 1) },
+  }))
+}
+
 export function tasksFromNotes(notes: string, referenceQueries: string[]): SqlTask[] {
   const matches = [...notes.matchAll(/^###\s+(\d+)\.\s+(.+)$/gm)]
   return matches.map((match, index) => ({
@@ -22,17 +32,21 @@ export function tasksFromNotes(notes: string, referenceQueries: string[]): SqlTa
   }))
 }
 
-function normalizedValue(value: SqlValue): unknown {
+const numericTypes = new Set([20, 21, 23, 26, 700, 701, 1700])
+
+function normalizedValue(value: SqlValue, dataType: number): unknown {
+  if (numericTypes.has(dataType) && value !== null) {
+    const number = Number(value)
+    if (Number.isFinite(number) && Math.abs(number) <= Number.MAX_SAFE_INTEGER) return number
+  }
   if (typeof value === 'bigint') return value.toString()
   if (value && typeof value === 'object') return JSON.stringify(value)
   return value
 }
 
-function canonicalRows(result: QueryResult, includeColumns: boolean) {
-  const names = result.fields.map((field) => field.name)
-  return result.rows.map((row) => JSON.stringify(includeColumns
-    ? Object.fromEntries([...Object.keys(row)].sort().map((key) => [key, normalizedValue(row[key])]))
-    : names.map((name) => normalizedValue(row[name]))))
+function canonicalRows(result: QueryResult) {
+  const values = result.rowValues ?? result.rows.map((row) => result.fields.map((field) => row[field.name]))
+  return values.map((row) => JSON.stringify(row.map((value, index) => normalizedValue(value, result.fields[index]?.dataTypeID))))
 }
 
 export function compareTaskResults(actual: QueryResult, expected: QueryResult, rules: SqlTask['rules']): TaskCheckResult {
@@ -43,8 +57,11 @@ export function compareTaskResults(actual: QueryResult, expected: QueryResult, r
       return { status: 'failed', message: `Колонки не совпадают. Ожидалось: ${expectedColumns.join(', ') || 'нет'}; получено: ${actualColumns.join(', ') || 'нет'}.` }
     }
   }
-  const actualRows = canonicalRows(actual, rules.compareColumns)
-  const expectedRows = canonicalRows(expected, rules.compareColumns)
+  if (actual.fields.length !== expected.fields.length) {
+    return { status: 'failed', message: `Количество колонок не совпадает: ожидалось ${expected.fields.length}, получено ${actual.fields.length}.` }
+  }
+  const actualRows = canonicalRows(actual)
+  const expectedRows = canonicalRows(expected)
   if (actualRows.length !== expectedRows.length) {
     return { status: 'failed', message: `Количество строк не совпадает: ожидалось ${expectedRows.length}, получено ${actualRows.length}.` }
   }
@@ -54,7 +71,9 @@ export function compareTaskResults(actual: QueryResult, expected: QueryResult, r
   }
   const mismatch = actualRows.findIndex((row, index) => row !== expectedRows[index])
   if (mismatch >= 0) {
-    return { status: 'failed', message: `Данные не совпадают${rules.compareOrder ? ` в строке ${mismatch + 1}` : ''}. Проверьте фильтры, соединения и вычисления.` }
+    const expectedRow = expectedRows[mismatch].slice(0, 220)
+    const actualRow = actualRows[mismatch].slice(0, 220)
+    return { status: 'failed', message: `Данные не совпадают${rules.compareOrder ? ` в строке ${mismatch + 1}` : ''}. Ожидалось ${expectedRow}; получено ${actualRow}.` }
   }
   return { status: 'passed', message: `Задание принято: ${actualRows.length} ${actualRows.length === 1 ? 'строка' : 'строк'} совпадают с эталоном.` }
 }
@@ -67,7 +86,7 @@ export async function checkTask(adapter: DatabaseAdapter, task: SqlTask, sql: st
   }
   try {
     const expected = await adapter.executeOne(task.referenceQuery)
-    const actual = await adapter.executeOne(sql)
+    const actual = task.rules.readOnly ? await adapter.executeReadOnly(sql) : await adapter.executeOne(sql)
     return compareTaskResults(actual, expected, task.rules)
   } catch (reason) {
     return { status: 'error', message: reason instanceof Error ? reason.message : String(reason) }

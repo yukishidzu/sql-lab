@@ -5,8 +5,9 @@ import { cn, displayValue, downloadFile, formatDuration } from '../lib/utils'
 import { Button } from './ui/button'
 
 function csvCell(value: SqlValue) {
+  if (value === null) return '\\N'
   let text = displayValue(value)
-  if (value !== null && /^[=+\-@]/.test(text)) text = `'${text}`
+  if (/^[=+\-@]/.test(text)) text = `'${text}`
   return `"${text.replaceAll('"', '""')}"`
 }
 
@@ -14,9 +15,10 @@ export function ResultTable({ result, error, running }: { result: QueryResult | 
   const [page, setPage] = useState(0)
   const [copied, setCopied] = useState(false)
   useEffect(() => { setPage(0) }, [result])
-  const pageCount = result ? Math.max(1, Math.ceil(result.rows.length / 50)) : 1
-  const rows = useMemo(() => result?.rows.slice(page * 50, page * 50 + 50) ?? [], [result, page])
-  const csv = useMemo(() => result ? [result.fields.map((field) => csvCell(field.name)).join(','), ...result.rows.map((row) => result.fields.map((field) => csvCell(row[field.name])).join(','))].join('\n') : '', [result])
+  const allRows = useMemo(() => result?.rowValues ?? result?.rows.map((row) => result.fields.map((field) => row[field.name])) ?? [], [result])
+  const pageCount = Math.max(1, Math.ceil(allRows.length / 50))
+  const rows = useMemo(() => allRows.slice(page * 50, page * 50 + 50), [allRows, page])
+  const csv = useMemo(() => result ? [result.fields.map((field) => csvCell(field.name)).join(','), ...allRows.map((row) => row.map(csvCell).join(','))].join('\n') : '', [result, allRows])
 
   if (running) return <div className="grid h-full min-h-32 place-items-center text-sm text-muted-foreground"><span className="flex items-center gap-2"><span className="size-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />PostgreSQL выполняет запрос…</span></div>
   if (error) return <div role="alert" className="h-full overflow-auto p-4"><div className="mb-2 text-sm font-medium text-destructive">Запрос не выполнен</div><pre className="whitespace-pre-wrap break-words font-mono text-xs leading-relaxed text-destructive/90">{error}</pre></div>
@@ -27,7 +29,6 @@ export function ResultTable({ result, error, running }: { result: QueryResult | 
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex min-h-10 flex-wrap items-center gap-2 border-b border-border px-3 py-1 text-xs text-muted-foreground">
         <span>{result.rowCount} {result.rowCount === 1 ? 'строка' : 'строк'} · {formatDuration(result.durationMs)}</span>
-        {result.rowCount > 200 && <span className="text-amber-600">Показ ограничен интерфейсом</span>}
         <div className="ml-auto flex items-center gap-1">
           <Button variant="ghost" size="sm" onClick={async () => { await navigator.clipboard.writeText(csv); setCopied(true); setTimeout(() => setCopied(false), 1500) }}><Copy size={13} />{copied ? 'Скопировано' : 'CSV'}</Button>
           <Button variant="ghost" size="sm" onClick={() => downloadFile('sql-lab-result.csv', csv, 'text/csv;charset=utf-8')}><Download size={13} />Скачать</Button>
@@ -35,11 +36,8 @@ export function ResultTable({ result, error, running }: { result: QueryResult | 
       </div>
       <div className="min-h-0 flex-1 overflow-auto">
         <table className="w-full border-collapse text-left font-mono text-xs">
-          <thead className="sticky top-0 z-10 bg-secondary/95 backdrop-blur"><tr>{result.fields.map((field) => <th key={field.name} className="whitespace-nowrap border-b border-border px-3 py-2 font-medium text-secondary-foreground">{field.name}</th>)}</tr></thead>
-          <tbody>{rows.map((row, rowIndex) => <tr key={page * 50 + rowIndex} className="hover:bg-accent/45">{result.fields.map((field) => {
-            const value = row[field.name]
-            return <td key={field.name} title={displayValue(value)} className={cn('max-w-72 truncate border-b border-border/60 px-3 py-2', value === null && 'italic text-muted-foreground')}>{displayValue(value)}</td>
-          })}</tr>)}</tbody>
+          <thead className="sticky top-0 z-10 bg-secondary/95 backdrop-blur"><tr>{result.fields.map((field, fieldIndex) => <th key={`${field.name}:${fieldIndex}`} className="whitespace-nowrap border-b border-border px-3 py-2 font-medium text-secondary-foreground">{field.name}</th>)}</tr></thead>
+          <tbody>{rows.map((values, rowIndex) => <tr key={page * 50 + rowIndex} className="hover:bg-accent/45">{values.map((value, fieldIndex) => <td key={fieldIndex} title={displayValue(value)} className={cn('max-w-72 truncate border-b border-border/60 px-3 py-2', value === null && 'italic text-muted-foreground')}>{displayValue(value)}</td>)}</tr>)}</tbody>
         </table>
         {!rows.length && <div className="p-6 text-center text-sm text-muted-foreground">Запрос выполнен, строк нет.</div>}
       </div>

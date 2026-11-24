@@ -2,7 +2,7 @@ import type { PGliteWorker } from '@electric-sql/pglite/worker'
 import PGWorker from './pglite-worker.ts?worker'
 import type { DatabaseAdapter, DbRelationship, QueryResult, ScenarioDefinition, SchemaInfo, SqlValue } from '../types'
 import { quoteIdentifier } from '../lib/utils'
-import { bootstrapScenario, bootstrapScenarioContents, type BootstrapProgress } from '../lib/bootstrap'
+import { bootstrapScenario, bootstrapScenarioContents, syncIdentitySequences, type BootstrapProgress } from '../lib/bootstrap'
 
 type RawResult = {
   fields: { name: string; dataTypeID: number }[]
@@ -10,10 +10,11 @@ type RawResult = {
   affectedRows?: number
 }
 
-function withDuration(result: RawResult, startedAt: number): QueryResult {
+function withDuration(result: RawResult, startedAt: number, rowValues?: SqlValue[][]): QueryResult {
   return {
     fields: result.fields ?? [],
     rows: result.rows ?? [],
+    rowValues,
     rowCount: result.rows?.length ?? 0,
     affectedRows: result.affectedRows,
     durationMs: performance.now() - startedAt,
@@ -35,9 +36,21 @@ class PGliteAdapter implements DatabaseAdapter {
     const startedAt = performance.now()
     const result = await this.db.transaction(async (tx) => {
       await tx.exec("SET LOCAL statement_timeout = '5000ms'")
-      return tx.query(sql) as Promise<RawResult>
+      return tx.query(sql, [], { rowMode: 'array' }) as Promise<RawResult & { rows: SqlValue[][] }>
     })
-    return withDuration(result, startedAt)
+    const rows = result.rows.map((values) => Object.fromEntries(result.fields.map((field, index) => [field.name, values[index]])))
+    return withDuration({ ...result, rows }, startedAt, result.rows)
+  }
+
+  async executeReadOnly(sql: string) {
+    const startedAt = performance.now()
+    const result = await this.db.transaction(async (tx) => {
+      await tx.exec('SET TRANSACTION READ ONLY')
+      await tx.exec("SET LOCAL statement_timeout = '5000ms'")
+      return tx.query(sql, [], { rowMode: 'array' }) as Promise<RawResult & { rows: SqlValue[][] }>
+    })
+    const rows = result.rows.map((values) => Object.fromEntries(result.fields.map((field, index) => [field.name, values[index]])))
+    return withDuration({ ...result, rows }, startedAt, result.rows)
   }
 
   async executeScript(sql: string) {
@@ -105,6 +118,7 @@ class PGliteAdapter implements DatabaseAdapter {
         primaryKey: primaryByTable.get(name)?.includes(column.column_name) ?? false,
         foreignKey: foreign.has(`${name}.${column.column_name}`),
       })),
+      uniqueGroups: uniqueSets.filter((set) => set.table === name).map((set) => set.columns),
     }))
 
     const result = relationships.rows.map((relation): DbRelationship => {
@@ -139,9 +153,11 @@ class PGliteAdapter implements DatabaseAdapter {
     return { tables, relationships: result }
   }
 
-  async readTable(table: string, limit = 200) {
+  async readTable(table: string, limit: number | null = 200) {
     const startedAt = performance.now()
-    const result = await this.db.query(`SELECT * FROM public.${quoteIdentifier(table)} LIMIT $1`, [limit]) as RawResult
+    const result = limit === null
+      ? await this.db.query(`SELECT * FROM public.${quoteIdentifier(table)}`) as RawResult
+      : await this.db.query(`SELECT * FROM public.${quoteIdentifier(table)} LIMIT $1`, [limit]) as RawResult
     return withDuration(result, startedAt)
   }
 
@@ -151,12 +167,14 @@ class PGliteAdapter implements DatabaseAdapter {
   }
 
   async importRows(table: string, rows: Record<string, SqlValue>[]) {
+    if (!rows.length) return
     await this.db.transaction(async (tx) => {
       for (const row of rows) {
         const columns = Object.keys(row)
         await tx.query(`INSERT INTO public.${quoteIdentifier(table)} (${columns.map(quoteIdentifier).join(', ')}) VALUES (${columns.map((_, index) => `$${index + 1}`).join(', ')})`, columns.map((column) => row[column]))
       }
     })
+    await syncIdentitySequences(this.db)
   }
 
   async updateRow(table: string, row: Record<string, SqlValue>, original: Record<string, SqlValue>) {

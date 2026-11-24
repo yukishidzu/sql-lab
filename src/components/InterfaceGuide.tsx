@@ -73,14 +73,24 @@ export function InterfaceGuide({ onClose }: { onClose: () => void }) {
       setCardStyle({ left: 12, right: 12, bottom: 12, top: 'auto' })
       return
     }
-    let left = Math.max(12, Math.min(target.left, window.innerWidth - card.width - 12))
-    const below = target.top + target.height + 16
-    let top = below + card.height <= window.innerHeight - 12 ? below : Math.max(12, target.top - card.height - 16)
-    if (target.height > window.innerHeight * 0.5 && (target.width < 160 || target.left + target.width >= window.innerWidth - 100)) {
-      left = Math.max(12, target.left - card.width - 16)
-      top = Math.max(12, Math.min((window.innerHeight - card.height) / 2, window.innerHeight - card.height - 12))
+    const clampLeft = (left: number) => Math.max(12, Math.min(left, window.innerWidth - card.width - 12))
+    const clampTop = (top: number) => Math.max(12, Math.min(top, window.innerHeight - card.height - 12))
+    const candidates = [
+      { left: target.left + target.width + 16, top: clampTop(target.top) },
+      { left: target.left - card.width - 16, top: clampTop(target.top) },
+      { left: clampLeft(target.left), top: target.top + target.height + 16 },
+      { left: clampLeft(target.left), top: target.top - card.height - 16 },
+    ]
+    const overlap = (candidate: { left: number; top: number }) => {
+      const width = Math.max(0, Math.min(candidate.left + card.width, target.left + target.width) - Math.max(candidate.left, target.left))
+      const height = Math.max(0, Math.min(candidate.top + card.height, target.top + target.height) - Math.max(candidate.top, target.top))
+      return width * height
     }
-    setCardStyle({ left, top, right: 'auto', bottom: 'auto' })
+    const withinViewport = (candidate: { left: number; top: number }) => candidate.left >= 12 && candidate.top >= 12
+      && candidate.left + card.width <= window.innerWidth - 12 && candidate.top + card.height <= window.innerHeight - 12
+    const position = candidates.find((candidate) => withinViewport(candidate) && overlap(candidate) === 0)
+      ?? candidates.map((candidate) => ({ left: clampLeft(candidate.left), top: clampTop(candidate.top) })).sort((a, b) => overlap(a) - overlap(b))[0]
+    setCardStyle({ left: position.left, top: position.top, right: 'auto', bottom: 'auto' })
   }, [target, stepIndex])
 
   useEffect(() => {

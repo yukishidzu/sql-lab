@@ -56,6 +56,17 @@ function scalarValue(column: DbColumn, table: DbTable, rows: Row[]): SqlValue {
   return `${name || 'value'}_${token(8)}`
 }
 
+function normalizeChronology(row: Row, startColumn: string, endColumn: string) {
+  const start = row[startColumn]
+  const end = row[endColumn]
+  if (typeof start !== 'string' || typeof end !== 'string') return
+  const startTime = new Date(`${start.replace(' ', 'T')}Z`)
+  const endTime = new Date(`${end.replace(' ', 'T')}Z`)
+  if (endTime.getTime() > startTime.getTime()) return
+  startTime.setUTCMinutes(startTime.getUTCMinutes() + 90)
+  row[endColumn] = startTime.toISOString().slice(0, 19).replace('T', ' ')
+}
+
 export async function generateValidRow(
   table: DbTable,
   relationships: DbRelationship[],
@@ -75,7 +86,10 @@ export async function generateValidRow(
     for (const column of table.columns) {
       if (row[column.name] === undefined) row[column.name] = scalarValue(column, table, existingRows)
     }
-    const duplicate = primary.length > 0 && existingRows.some((existing) => primary.every((column) => existing[column] === row[column]))
+    normalizeChronology(row, 'scheduled_departure', 'scheduled_arrival')
+    normalizeChronology(row, 'actual_departure', 'actual_arrival')
+    const uniqueGroups = [...(primary.length ? [primary] : []), ...(table.uniqueGroups ?? [])]
+    const duplicate = uniqueGroups.some((group) => existingRows.some((existing) => group.every((column) => existing[column] === row[column])))
     if (!duplicate) return row
   }
   throw new Error('Не удалось найти уникальную комбинацию первичного ключа')

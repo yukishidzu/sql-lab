@@ -53,14 +53,18 @@ export function contextualSqlSource(sources: CompletionSource[]): CompletionSour
         if (!previous || (boosted.boost ?? 0) > (previous.boost ?? 0)) options.set(completion.label, boosted)
       }
     }
+    const phrase = context.state.doc.sliceString(0, context.pos).toUpperCase().match(/\b([A-Z_]+)\s+([A-Z_]*)$/)
+    const phrasePrefix = phrase ? `${phrase[1]} ${phrase[2]}` : ''
+    const hasMultiwordPrefix = Boolean(phrase && [...options.keys(), ...recommendations[clause]].some((label) => label.includes(' ') && label.startsWith(phrasePrefix)))
+    const activePrefix = hasMultiwordPrefix ? phrasePrefix : prefix
     for (const label of recommendations[clause]) {
-      if (prefix && !label.startsWith(prefix)) continue
+      if (activePrefix && !label.startsWith(activePrefix)) continue
       const completion = boostFor({ label, type: 'keyword' }, clause)
       const previous = options.get(label)
       if (!previous || (completion.boost ?? 0) > (previous.boost ?? 0)) options.set(label, completion)
     }
     return {
-      from: context.pos - prefix.length,
+      from: context.pos - activePrefix.length,
       to: context.pos,
       options: [...options.values()],
       filter: true,

@@ -37,7 +37,7 @@ test('PostgreSQL, ERD, история, заметки и шаринг работ
   await expect(page.getByRole('button', { name: 'SELECT code, city FROM airports ORDER BY code;', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Закрыть панель', exact: true }).click()
 
-  await expect(page.getByRole('heading', { name: 'Задания: авиаперелёты' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Материалы: авиаперелёты' })).toBeVisible()
   await page.getByRole('button', { name: 'Редактировать заметки' }).click()
   const notes = page.getByRole('textbox', { name: 'Markdown-заметки' })
   await notes.fill('# Проверка\n\nСохранить эту заметку.')

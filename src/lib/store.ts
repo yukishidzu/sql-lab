@@ -36,8 +36,19 @@ export async function createWorkspaceRecord(scenario: Workspace['scenario']) {
   return workspace
 }
 
-export async function touchWorkspace(id: string, patch: Partial<Workspace>) {
-  await store.workspaces.update(id, { ...patch, updatedAt: Date.now() })
+const workspaceWrites = new Map<string, Promise<void>>()
+
+export function touchWorkspace(id: string, patch: Partial<Workspace>) {
+  const previous = workspaceWrites.get(id) ?? Promise.resolve()
+  const next = previous.catch(() => {}).then(async () => {
+    await store.workspaces.update(id, { ...patch, updatedAt: Date.now() })
+  })
+  workspaceWrites.set(id, next)
+  const cleanup = () => {
+    if (workspaceWrites.get(id) === next) workspaceWrites.delete(id)
+  }
+  void next.then(cleanup, cleanup)
+  return next
 }
 
 export async function saveNamedQuery(workspaceId: string, name: string, sql: string, starter = false) {

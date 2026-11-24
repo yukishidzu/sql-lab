@@ -12,11 +12,11 @@ test('автопроверка принимает эталон и позволя
   await page.getByRole('button', { name: /Интернет-магазин.*5 таблиц.*10 заданий/s }).click()
   await expect(page.getByRole('button', { name: 'Выполнить', exact: true })).toBeVisible({ timeout: 90000 })
   await page.getByRole('button', { name: 'Задания', exact: true }).click()
-  await expect(page.getByText('1. Дорогие активные товары', { exact: true })).toBeVisible()
+  await expect(page.getByText('1. Активные дорогие товары', { exact: true })).toBeVisible()
 
   await page.getByRole('button', { name: 'Проверить решение' }).click()
   await expect(page.getByRole('status')).toContainText('не совпадает')
-  await writeSql(page, 'SELECT name, price, stock_qty FROM products WHERE is_active AND price > 3000 ORDER BY price DESC, id LIMIT 5')
+  await writeSql(page, 'SELECT name, price, stock_qty FROM products WHERE is_active AND price > 3000 ORDER BY price DESC, id')
   await page.getByRole('button', { name: 'Проверить решение' }).click()
   await expect(page.getByRole('status')).toContainText('Задание принято')
 

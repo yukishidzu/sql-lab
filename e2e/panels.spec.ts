@@ -4,7 +4,7 @@ test('ширина заданий сохраняется, а у пустой б�
   await page.goto('/')
   await page.getByRole('button', { name: /Интернет-магазин.*5 таблиц/s }).click()
   await expect(page.getByRole('button', { name: 'Выполнить', exact: true })).toBeVisible({ timeout: 90000 })
-  const notes = page.getByRole('complementary', { name: 'Заметки и задания' })
+  const notes = page.getByRole('complementary', { name: 'Материалы и задания' })
   const initial = await notes.boundingBox()
   const separator = page.getByRole('separator', { name: 'Изменить ширину панели заданий' })
   const box = await separator.boundingBox()
@@ -23,7 +23,7 @@ test('ширина заданий сохраняется, а у пустой б�
   await page.getByRole('button', { name: 'На главную' }).click()
   await page.getByRole('button', { name: 'Пустая база', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Выполнить', exact: true })).toBeVisible({ timeout: 90000 })
-  await expect(page.getByRole('button', { name: 'Открыть заметки' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Открыть материалы и задания' })).toBeVisible()
 })
 
 test('схема и результат скрываются, колонки меняются местами', async ({ page }) => {

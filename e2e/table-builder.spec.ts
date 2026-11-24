@@ -17,7 +17,7 @@ test('конструктор создаёт таблицу с PK/FK на сур�
 
   await page.getByRole('button', { name: 'Показать DDL' }).click()
   const preview = page.getByRole('textbox', { name: 'DDL новой таблицы' })
-  await expect(preview).toHaveValue(/"ticket_flight_id" integer REFERENCES "ticket_flights" \("id"\)/)
+  await expect(preview).toHaveValue(/CONSTRAINT .* FOREIGN KEY \("ticket_flight_id"\) REFERENCES "ticket_flights" \("id"\)/)
   await page.getByRole('button', { name: 'Добавить в DDL' }).click()
   await expect(page.getByRole('textbox', { name: 'DDL PostgreSQL' })).toHaveValue(/CREATE TABLE "boarding_copy"/)
   page.once('dialog', (dialog) => void dialog.accept())
